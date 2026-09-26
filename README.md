@@ -124,7 +124,7 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 | V3 | Missing authorization on report deletion | A01 | 862 | Critical | Dias | ☐ |
 | V4 | IDOR and mass assignment on report update | A01 | 639/915 | High | Dias | ☐ |
 | V5 | Anonymous reporter de-anonymisation | A01/A02 | 359 | High | Dias | ☐ |
-| V6 | NoSQL injection in authentication flows | A03 | 943 | High | Dabarera | ☐ |
+| V6 | NoSQL injection in authentication flows | A03 | 943 | High | Dabarera | ✅ |
 | V7 | Predictable OTP generation | A02 | 338/330 | High | Thilakumara | ☐ |
 | V8 | OTP disclosed in HTTP response | A04 | 200 | High | Pabasara | ☐ |
 | V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ☐ |
@@ -138,6 +138,8 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 | V17 | Insufficient transport security | A02 | 319/311 | Medium | Dabarera | ☐ |
 
 **Documented as accepted residual risk:** DOM XSS sinks · LLM prompt injection · over-broad report read access.
+
+> **V6 verified impact.** Black-box testing (`evidence/V06-before.txt`) confirms the operator payload reaches Mongo, but the impact is narrower than a login bypass: `POST /login` with `{"$ne":null}` in both fields returns **500** (`bcrypt.compare` rejects the non-string password) rather than a signed JWT. The demonstrated impact is on `POST /forgot-password` — an operator matches an **arbitrary** account, so a password-reset token is generated and stored for a user the attacker never named (500 after the match, vs 404 for a bogus literal email) — and on `POST /register`, where `findOneAndDelete({email:{$ne:null}})` deletes another user's pending signup. Discovery credit: manual code review + the black-box PoC (njsscan has no rule for this Mongoose pattern; Semgrep does not run on native Windows).
 
 ---
 
