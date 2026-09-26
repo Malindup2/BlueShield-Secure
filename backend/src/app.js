@@ -6,6 +6,10 @@ const YAML = require('yamljs');
 
 const app = express();
 
+// V6: flat query strings only — ?a[$ne]=1 must never parse into an object.
+// Express 5 already defaults to 'simple'; set explicitly to document intent.
+app.set('query parser', 'simple');
+
 const swaggerDocument = YAML.load(path.join(__dirname, '../docs/swagger.yaml'));
 
 const allowedOrigins = [
@@ -28,6 +32,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(require('./middlewares/sanitize')); // V6: reject $-prefixed / dotted keys
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
