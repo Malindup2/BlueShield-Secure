@@ -16,15 +16,44 @@ const checkNewPassword = (errors, password) => {
   if (!isString(password) || password.length < 8 || password.length > 128) errors.push("password must be a string of 8-128 characters");
 };
 
+// V1 — registration accepts only these fields. Anything else, including
+// role, isVerified or isActive, is rejected rather than ignored, so an
+// attempt to set one is visible in the logs instead of failing silently.
+const REGISTER_FIELDS = ["name", "email", "password", "phone"];
+
 exports.register = (req) => {
   const errors = [];
   const body = req.body || {};
+
+  const unexpected = Object.keys(body).filter((k) => !REGISTER_FIELDS.includes(k));
+  if (unexpected.length) {
+    errors.push(`unexpected field(s): ${unexpected.join(", ")}`);
+  }
 
   if (!isString(body.name) || !body.name.trim() || body.name.length > 100) errors.push("name must be a string of 1-100 characters");
   checkEmail(errors, body.email);
   checkNewPassword(errors, body.password);
   if (body.phone != null && (!isString(body.phone) || body.phone.length > 20)) errors.push("phone must be a string of at most 20 characters");
-  if (body.role != null && !isString(body.role)) errors.push("role must be a string");
+
+  return { error: errors.length ? errors : null };
+};
+
+// V1 — an administrator may grant only a role from the known set, and the
+// target must be a valid ObjectId.
+const ROLES = ["FISHERMAN", "OFFICER", "HAZARD_ADMIN", "ILLEGAL_ADMIN", "SYSTEM_ADMIN"];
+const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
+
+exports.updateUserRole = (req) => {
+  const errors = [];
+  const body = req.body || {};
+
+  if (!OBJECT_ID_RE.test(req.params.id || "")) errors.push("invalid user id");
+  if (!isString(body.role) || !ROLES.includes(body.role)) {
+    errors.push(`role must be one of: ${ROLES.join(", ")}`);
+  }
+
+  const unexpected = Object.keys(body).filter((k) => k !== "role");
+  if (unexpected.length) errors.push(`unexpected field(s): ${unexpected.join(", ")}`);
 
   return { error: errors.length ? errors : null };
 };
