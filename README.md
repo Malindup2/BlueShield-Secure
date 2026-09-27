@@ -127,7 +127,7 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 | V6 | NoSQL injection in authentication flows | A03 | 943 | High | Dabarera | ✅ |
 | V7 | Predictable OTP generation | A02 | 338/330 | High | Thilakumara | ☐ |
 | V8 | OTP disclosed in HTTP response | A04 | 200 | High | Pabasara | ☐ |
-| V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ☐ |
+| V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ✅ |
 | V10 | Sensitive fields exposed via `/api/auth/me` | A02 | 200 | High | Pabasara | ☐ |
 | V11 | Secrets committed to git history | A05 | 540 | Medium | Dias | ☐ |
 | V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ☐ |
