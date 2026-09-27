@@ -66,4 +66,8 @@ app.get('/', (req, res) => {
   res.send('BlueShield API is running...');
 });
 
+// V14: must be last. Logs the full error server-side and returns a generic
+// message, so exception text never reaches a client.
+app.use(require('./middlewares/errorHandler'));
+
 module.exports = app;
