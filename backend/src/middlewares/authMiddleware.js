@@ -15,8 +15,15 @@ const protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from the token, exclude password
-      req.user = await User.findById(decoded.id).select('-password');
+      // This is a second,
+      // independent layer of protection on top of the User schema's
+      // select:false fields (otp, otpExpire, resetPasswordToken,
+      // resetPasswordExpire, failedLoginAttempts, lockUntil) — even if a
+      // future sensitive field is added to the schema without select:false,
+      // it still cannot leak through here, since only named fields are ever returned.
+      req.user = await User.findById(decoded.id).select(
+        'name email phone role isActive isVerified authProvider lastLoginAt createdAt updatedAt'
+      );
 
       if (!req.user) {
         return res.status(401).json({ message: 'Not authorized, user not found' });
