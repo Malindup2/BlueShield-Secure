@@ -1,0 +1,5 @@
+# V17: TLS material must never be committed
+certs/
+*.pem
+*.key
+*.crt

@@ -31,6 +31,9 @@ app.set('query parser', 'simple');
 // response carries them.
 app.use(helmet());
 
+// V17: redirect any plaintext HTTP request to HTTPS (production / FORCE_HTTPS).
+app.use(require('./middlewares/enforceHttps'));
+
 const swaggerDocument = YAML.load(path.join(__dirname, '../docs/swagger.yaml'));
 
 const allowedOrigins = [
