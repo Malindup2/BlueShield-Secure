@@ -10,7 +10,9 @@ const bcrypt = require('bcryptjs');
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    // V1: role is deliberately not read from the request body. Privileged
+    // roles are granted only by a SYSTEM_ADMIN through updateUserRole.
+    const { name, email, password, phone } = req.body;
 
     // 1. Check if user already exists in main collection
     const userExists = await User.findOne({ email });
@@ -30,7 +32,7 @@ const registerUser = async (req, res, next) => {
       email,
       password, // Stored temporarily to be hashed by User model later
       phone,
-      role: role || 'FISHERMAN',
+      role: 'FISHERMAN',
       otp,
       otpExpire,
     });
@@ -93,7 +95,9 @@ const verifyOTP = async (req, res) => {
       email: pendingUser.email,
       password: pendingUser.password, // This will be hashed by User pre-save hook
       phone: pendingUser.phone,
-      role: pendingUser.role,
+      // V1: defence in depth. Even if a pending record somehow carries a
+      // privileged role, account creation never honours it.
+      role: 'FISHERMAN',
       isVerified: true,
     });
 
@@ -266,6 +270,61 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
+// @desc    List users so an administrator can select one to promote
+// @route   GET /api/auth/users
+// @access  Private (SYSTEM_ADMIN)
+const listUsers = async (req, res, next) => {
+  try {
+    const users = await User.find({})
+      .select('name email role isActive isVerified createdAt')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ users, total: users.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Grant or change a user's role
+// @route   PATCH /api/auth/users/:id/role
+// @access  Private (SYSTEM_ADMIN)
+//
+// V1: this is the only path by which a privileged role can be obtained.
+// Registration always produces a FISHERMAN, so privilege is granted by an
+// administrator rather than claimed by the account holder.
+const updateUserRole = async (req, res, next) => {
+  try {
+    const { role } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // An administrator cannot change their own role, so the last
+    // SYSTEM_ADMIN cannot accidentally demote themselves and lock everyone
+    // out of role management.
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot change your own role' });
+    }
+
+    const previousRole = user.role;
+    user.role = role;
+    await user.save();
+
+    console.info(
+      `[Security] Role change: ${user.email} ${previousRole} -> ${role} by ${req.user.email}`
+    );
+
+    res.status(200).json({
+      message: 'Role updated',
+      user: { _id: user.id, name: user.name, email: user.email, role: user.role },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   verifyOTP,
@@ -274,4 +333,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  listUsers,
+  updateUserRole,
 };
