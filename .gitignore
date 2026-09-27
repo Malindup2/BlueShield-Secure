@@ -1,5 +1,10 @@
 node_modules
+
+# Local environment files
 .env
+.env.*
+!.env.example
+
 .DS_Store
 dist
 build
