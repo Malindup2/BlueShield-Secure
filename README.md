@@ -135,7 +135,7 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 | V14 | User enumeration and verbose error leakage | A01/A09 | 204/209 | Medium | Thilakumara | ☐ |
 | V15 | Weak administrator-role validation | A01 | 697 | Medium | Pabasara | ☐ |
 | V16 | Vulnerable third-party dependencies | A06 | 1035 | Medium | Pabasara | ☐ |
-| V17 | Insufficient transport security | A02 | 319/311 | Medium | Dabarera | ☐ |
+| V17 | Insufficient transport security | A02 | 319/311 | Medium | Dabarera | ✅ |
 
 **Documented as accepted residual risk:** DOM XSS sinks · LLM prompt injection · over-broad report read access.
 
