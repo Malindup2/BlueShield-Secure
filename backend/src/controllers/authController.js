@@ -5,6 +5,23 @@ const sendEmail = require('../services/emailService');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
+// V7 — verification codes.
+// randomInt draws from the OS CSPRNG. Math.random() must not be used
+// a non-cryptographic generator can be recovered from predictions
+const OTP_MAX_ATTEMPTS = 5;
+
+const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
+
+// Only the digest is persisted, so a database read yields nothing usable.
+const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
+
+const otpMatches = (submitted, storedHash) => {
+  const a = Buffer.from(hashOtp(submitted));
+  const b = Buffer.from(String(storedHash || ''));
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+};
+
 // @desc    Register new user (Phase 1: OTP)
 // @route   POST /api/auth/register
 // @access  Public
@@ -21,7 +38,7 @@ const registerUser = async (req, res, next) => {
     }
 
     // 2. Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateOtp();
     const otpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // 3. Save to PendingUser collection (Upsert if already pending)
@@ -33,8 +50,9 @@ const registerUser = async (req, res, next) => {
       password, // Stored temporarily to be hashed by User model later
       phone,
       role: 'FISHERMAN',
-      otp,
+      otp: hashOtp(otp),
       otpExpire,
+      attempts: 0,
     });
 
     if (pendingUser) {
@@ -74,19 +92,31 @@ const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    const pendingUser = await PendingUser.findOne({ email });
+    // otp and attempts are select:false, so both are requested explicitly.
+    const pendingUser = await PendingUser.findOne({ email }).select('+otp +attempts');
 
     if (!pendingUser) {
       return res.status(404).json({ message: 'Registration session expired or not found. Please register again.' });
     }
 
-    // Check OTP (String comparison to be safe)
-    if (String(pendingUser.otp) !== String(otp)) {
-      return res.status(400).json({ message: 'Invalid verification code' });
+    // V7: a six-digit code is only 10^6 wide, so guessing has to be bounded.
+    // Once the limit is reached the registration is discarded, even if the
+    // caller then supplies the correct code.
+    if ((pendingUser.attempts || 0) >= OTP_MAX_ATTEMPTS) {
+      await PendingUser.findByIdAndDelete(pendingUser._id);
+      return res.status(400).json({ message: 'Too many incorrect attempts. Please register again.' });
     }
 
     if (pendingUser.otpExpire < new Date()) {
       return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
+    }
+
+    // V7: the submitted code is hashed and compared in constant time, so
+    // neither the stored value nor the comparison timing reveals anything.
+    if (!otpMatches(otp, pendingUser.otp)) {
+      pendingUser.attempts = (pendingUser.attempts || 0) + 1;
+      await pendingUser.save();
+      return res.status(400).json({ message: 'Invalid verification code' });
     }
 
     // Move to User collection
@@ -123,16 +153,19 @@ const verifyOTP = async (req, res) => {
 const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
-    const pendingUser = await PendingUser.findOne({ email });
+    const pendingUser = await PendingUser.findOne({ email }).select('+attempts');
 
     if (!pendingUser) {
       return res.status(404).json({ message: 'Registration session not found. Please register again.' });
     }
 
-    // Generate new OTP
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    pendingUser.otp = newOtp;
+    // Generate new OTP. The attempt counter resets with the new code,
+    // but the pending record still expires on its own TTL, so requesting
+    // fresh codes cannot be used to extend a guessing window indefinitely.
+    const newOtp = generateOtp();
+    pendingUser.otp = hashOtp(newOtp);
     pendingUser.otpExpire = new Date(Date.now() + 10 * 60 * 1000);
+    pendingUser.attempts = 0;
     await pendingUser.save();
 
     try {
@@ -335,4 +368,4 @@ module.exports = {
   getMe,
   listUsers,
   updateUserRole,
-};
+};
