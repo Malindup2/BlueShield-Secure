@@ -106,6 +106,21 @@ describe('V1 — role mass assignment on registration', () => {
     expect(User.create.mock.calls.at(-1)[0].role).toBe('FISHERMAN');
   });
 
+  describe('role management endpoint', () => {
+    test('promoting a user requires authentication', async () => {
+      const res = await request(app)
+        .patch('/api/auth/users/507f1f77bcf86cd799439011/role')
+        .send({ role: 'SYSTEM_ADMIN' });
+
+      expect(res.status).toBe(401);
+    });
+
+    test('listing users requires authentication', async () => {
+      const res = await request(app).get('/api/auth/users');
+      expect(res.status).toBe(401);
+    });
+  });
+
   test('a pending registration cannot be escalated between register and verify', async () => {
     // Even if the pending record somehow holds a privileged role, account
     // creation must not honour it.
