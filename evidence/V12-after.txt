@@ -1,0 +1,18 @@
+====================================================================
+V12 - Security Misconfiguration - AFTER FIX (black-box)
+OWASP A05:2021  CWE-693/16   Target: http://localhost:5000 (NODE_ENV=production)   Sun Sep 27 15:49:14 SLST 2026
+====================================================================
+
+### CHECK 1 - security headers now present (helmet)
+  PRESENT : Content-Security-Policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests
+  PRESENT : X-Content-Type-Options: nosniff
+  PRESENT : X-Frame-Options: SAMEORIGIN
+  PRESENT : Strict-Transport-Security: max-age=31536000; includeSubDomains
+  PRESENT : Referrer-Policy: no-referrer
+  PRESENT : X-DNS-Prefetch-Control: off
+
+### CHECK 2 - framework banner removed (was 'X-Powered-By: Express')
+  X-Powered-By: ABSENT (good)
+
+### CHECK 3 - Swagger UI gated off in production (was HTTP 200 public)
+  GET /api-docs -> HTTP 404

@@ -117,10 +117,10 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 
 17 vulnerabilities identified across 8 OWASP Top 10 (2021) categories.
 
-**Progress: 7 of 17 remediated** — V1, V3, V6, V7, V9, V13, V14.
+**Progress: 8 of 17 remediated** — V1, V3, V6, V7, V9, V12, V13, V14.
 The OAuth 2.0 / OpenID Connect feature (Google, Authorization Code with PKCE) is implemented and verified end to end.
 
-Categories closed so far: **A01, A02, A03, A07, A09**.
+Categories closed so far: **A01, A02, A03, A05, A07, A09**.
 
 | ID | Vulnerability | OWASP | CWE | Severity | Owner | Status |
 |---|---|---|---|---|---|---|
@@ -135,7 +135,7 @@ Categories closed so far: **A01, A02, A03, A07, A09**.
 | V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ✅ |
 | V10 | Sensitive fields exposed via `/api/auth/me` | A02 | 200 | High | Pabasara | ☐ |
 | V11 | Secrets committed to git history | A05 | 540 | Medium | Dias | ☐ |
-| V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ☐ |
+| V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ✅ |
 | V13 | Insecure JWT storage and lifecycle | A02/A07 | 522/613 | Medium | Thilakumara | ✅ |
 | V14 | User enumeration and verbose error leakage | A01/A09 | 204/209 | Medium | Thilakumara | ✅ |
 | V15 | Weak administrator-role validation | A01 | 697 | Medium | Pabasara | ☐ |
