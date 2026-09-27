@@ -1,0 +1,29 @@
+====================================================================
+V17 - Transport Security - AFTER FIX (black-box)
+OWASP A02:2021  CWE-319/311   Sun Sep 27 16:10:43 SLST 2026
+====================================================================
+
+### CHECK 1 - TLS handshake (openssl s_client): protocol + cipher + cert
+  subject=CN=localhost
+  issuer=CN=localhost
+  New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+  Protocol: TLSv1.3
+  Verify return code: 18 (self-signed certificate)
+      Protocol  : TLSv1.3
+      Cipher    : TLS_AES_256_GCM_SHA384
+      Verify return code: 18 (self-signed certificate)
+      Protocol  : TLSv1.3
+      Cipher    : TLS_AES_256_GCM_SHA384
+      Verify return code: 18 (self-signed certificate)
+
+### CHECK 2 - API responds 200 over HTTPS with HSTS header
+  HTTP/1.1 200 OK
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+### CHECK 3 - plaintext HTTP is 301-redirected to HTTPS (listener :8080)
+  HTTP/1.1 301 Moved Permanently
+  Location: https://localhost:5000/api/auth/me
+
+### CHECK 4 - legacy TLS 1.1 refused (server minVersion TLSv1.2)
+  50820000:error:0A0000BF:SSL routines:tls_setup_handshake:no protocols available:../openssl-3.5.7/ssl/statem/statem_lib.c:155:
+  Protocol: TLSv1.3
