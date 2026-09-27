@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
@@ -17,7 +18,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl)
+    
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = "The CORS policy for this site does not allow access from the specified Origin.";
@@ -28,11 +29,14 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+// Required by the OAuth flow: the PKCE verifies.
+app.use(cookieParser());
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/auth/oauth', require('./routes/oauthRoutes'));
 app.use('/api/enforcements', require('./routes/enforcementRoutes'));
 app.use('/api/hazards', require('./routes/hazardRoutes'));
 app.use('/api/zones', require('./routes/zoneRoutes'));
