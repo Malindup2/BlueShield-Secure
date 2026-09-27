@@ -44,8 +44,12 @@ const protect = async (req, res, next) => {
 };
 
 // Admin Role Check Middleware
+// Uses strict set membership instead of a substring match, so a role
+// name merely containing "ADMIN" cannot accidentally pass this check.
+const ADMIN_ROLES = new Set(['SYSTEM_ADMIN', 'HAZARD_ADMIN', 'ILLEGAL_ADMIN']);
+
 const adminOnly = (req, res, next) => {
-  if (req.user && (req.user.role === 'SYSTEM_ADMIN' || req.user.role.includes('ADMIN'))) {
+  if (req.user && ADMIN_ROLES.has(req.user.role)) {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as an admin' });
