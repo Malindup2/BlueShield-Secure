@@ -155,28 +155,58 @@ const resendOTP = async (req, res) => {
 // @desc    Authenticate a user
 // @route   POST /api/auth/login
 // @access  Public
+// V9 — per-account lockout parameters (OWASP A07:2021, CWE-307).
+// Complements the IP-based authLimiter: even an attacker rotating IPs cannot
+// keep guessing one account's password. Every failure path returns the SAME
+// 401 message so a locked account is indistinguishable from a wrong password
+// or an unknown user (avoids V14 user enumeration).
+const MAX_LOGIN_ATTEMPTS = Number(process.env.MAX_LOGIN_ATTEMPTS) || 5;
+const LOCK_TIME_MS = (Number(process.env.LOCK_TIME_MINUTES) || 15) * 60 * 1000;
+const GENERIC_LOGIN_ERROR = 'Invalid email or password';
+
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check for user email & select password field explicitly
-    const user = await User.findOne({ email }).select('+password');
+    // Lockout state lives in select:false fields, so request them explicitly.
+    const user = await User.findOne({ email }).select(
+      '+password +failedLoginAttempts +lockUntil'
+    );
+
+    // Account currently locked: refuse without checking the password, using the
+    // generic message so the lock is not observable to an attacker.
+    if (user && user.lockUntil && user.lockUntil > Date.now()) {
+      return res.status(401).json({ message: GENERIC_LOGIN_ERROR });
+    }
 
     if (user && (await user.matchPassword(password))) {
-      // Update lastLoginAt
+      // Success: clear any accumulated failures and record the login.
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
       user.lastLoginAt = Date.now();
       await user.save();
 
-      res.json({
+      return res.json({
         _id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         token: generateToken(user._id, user.role),
       });
-    } else {
-      res.status(401).json({ message: 'Invalid email or password' });
     }
+
+    // Failure against a real account: count it and lock once the threshold is
+    // reached. (An unknown email falls through to the same generic response,
+    // so the two are indistinguishable.)
+    if (user) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.lockUntil = new Date(Date.now() + LOCK_TIME_MS);
+      }
+      await user.save();
+    }
+
+    return res.status(401).json({ message: GENERIC_LOGIN_ERROR });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -5,7 +5,17 @@ const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 
+const { globalLimiter } = require('./middlewares/rateLimiter');
+
 const app = express();
+
+// V9: trust the proxy hop(s) in front of the app so express-rate-limit keys on
+// the real client IP, not the proxy's. Value comes from TRUST_PROXY (e.g. 1)
+// rather than being hard-coded, so it matches the actual deployment topology.
+if (process.env.TRUST_PROXY) {
+  const tp = process.env.TRUST_PROXY;
+  app.set('trust proxy', /^\d+$/.test(tp) ? Number(tp) : tp);
+}
 
 // V6: flat query strings only — ?a[$ne]=1 must never parse into an object.
 // Express 5 already defaults to 'simple'; set explicitly to document intent.
@@ -36,6 +46,7 @@ app.use(express.json());
 app.use(require('./middlewares/sanitize')); // V6: reject $-prefixed / dotted keys
 // Required by the OAuth flow: the PKCE verifies.
 app.use(cookieParser());
+app.use(globalLimiter); // V9: broad per-IP request ceiling
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
