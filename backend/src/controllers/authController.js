@@ -4,6 +4,7 @@ const generateToken = require('../utils/generateToken');
 const sendEmail = require('../services/emailService');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const logger = require('../utils/logger');
 
 // V7 — verification codes.
 // randomInt draws from the OS CSPRNG. Math.random() must not be used
@@ -31,10 +32,34 @@ const registerUser = async (req, res, next) => {
     // roles are granted only by a SYSTEM_ADMIN through updateUserRole.
     const { name, email, password, phone } = req.body;
 
-    // 1. Check if user already exists in main collection
+    // V14: an address that is already registered must produce exactly the
+    // same response as a free one, or registration becomes an oracle for
+    // harvesting valid accounts. Nothing is created, and the real owner is
+    // told by email that someone tried.
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists and is verified.' });
+      logger.registrationBlocked(req, email, 'already_registered');
+
+      try {
+        await sendEmail({
+          email,
+          subject: 'BlueShield - Registration attempt',
+          message:
+            'Someone tried to register an account with this email address. ' +
+            'If this was you, please sign in instead, or reset your password.',
+          html:
+            '<h1>Registration attempt</h1><p>Someone tried to register an account ' +
+            'with this email address. If this was you, please sign in instead, or ' +
+            'reset your password.</p>',
+        });
+      } catch (err) {
+        console.error('Notification of duplicate registration failed:', err.message);
+      }
+
+      return res.status(201).json({
+        message: 'OTP sent to your email. Please verify to complete registration.',
+        email,
+      });
     }
 
     // 2. Generate 6-digit OTP
@@ -88,7 +113,7 @@ const registerUser = async (req, res, next) => {
 // @desc    Verify OTP and Create Account
 // @route   POST /api/auth/verify-otp
 // @access  Public
-const verifyOTP = async (req, res) => {
+const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
@@ -143,14 +168,14 @@ const verifyOTP = async (req, res) => {
       token: generateToken(user._id, user.role),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Resend OTP
 // @route   POST /api/auth/resend-otp
 // @access  Public
-const resendOTP = async (req, res) => {
+const resendOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
     const pendingUser = await PendingUser.findOne({ email }).select('+attempts');
@@ -185,14 +210,14 @@ const resendOTP = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Authenticate a user
 // @route   POST /api/auth/login
 // @access  Public
-const loginUser = async (req, res) => {
+const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -204,6 +229,8 @@ const loginUser = async (req, res) => {
       user.lastLoginAt = Date.now();
       await user.save();
 
+      logger.loginSucceeded(req, email);
+
       res.json({
         _id: user.id,
         name: user.name,
@@ -212,22 +239,34 @@ const loginUser = async (req, res) => {
         token: generateToken(user._id, user.role),
       });
     } else {
+      // V14: the same message whether the address is unknown or the
+      // password is wrong, so sign-in cannot be used to enumerate accounts.
+      // Which of the two it was is recorded server-side only.
+      logger.loginFailed(req, email, user ? 'bad_password' : 'unknown_account');
       res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Forgot Password
 // @route   POST /api/auth/forgot-password
 // @access  Public
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res, next) => {
+  // V14: the response is identical whether or not the address is
+  // registered, so this endpoint cannot be used to test which addresses
+  // hold accounts. Whether one existed is recorded server-side only.
+  const ACCEPTED = {
+    message: 'If an account exists for that address, a reset link has been sent.',
+  };
+
   try {
     const user = await User.findOne({ email: req.body.email });
+    logger.passwordResetRequested(req, req.body.email, Boolean(user));
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found with that email' });
+      return res.status(200).json(ACCEPTED);
     }
 
     // Get reset token
@@ -252,22 +291,25 @@ const forgotPassword = async (req, res) => {
         html: `<h1>Password Reset</h1><p>Click <a href="${frontendResetUrl}">here</a> to reset your password.</p>`,
       });
 
-      res.status(200).json({ message: 'Email sent' });
+      res.status(200).json(ACCEPTED);
     } catch (err) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save();
-      res.status(500).json({ message: 'Email could not be sent' });
+      console.error('Password reset email failed:', err.message);
+      // Still the same response: a delivery failure must not reveal that
+      // the address was valid.
+      res.status(200).json(ACCEPTED);
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Reset Password
 // @route   POST /api/auth/reset-password/:token
 // @access  Public
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res, next) => {
   try {
     // Get hashed token
     const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
@@ -292,7 +334,7 @@ const resetPassword = async (req, res) => {
       token: generateToken(user._id, user.role),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
