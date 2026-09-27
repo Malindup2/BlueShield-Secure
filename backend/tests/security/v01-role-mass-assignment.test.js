@@ -12,6 +12,7 @@ jest.mock('../../src/models/PendingUser');
 jest.mock('../../src/services/emailService');
 jest.mock('../../src/utils/generateToken');
 
+const crypto = require('crypto');
 const request = require('supertest');
 const app = require('../../src/app');
 const User = require('../../src/models/User');
@@ -85,16 +86,17 @@ describe('V1 — role mass assignment on registration', () => {
   });
 
   test('verify-otp creates the account with the role held server-side', async () => {
-    PendingUser.findOne.mockResolvedValue({
+    PendingUser.findOne.mockImplementation(() => findOneResult({
       _id: 'p1',
       name: 'Mallory',
       email: 'mallory@example.com',
       password: 'hashed',
       phone: null,
       role: 'FISHERMAN',
-      otp: '123456',
+      otp: crypto.createHash('sha256').update('123456').digest('hex'),
+      attempts: 0,
       otpExpire: new Date(Date.now() + 60000),
-    });
+    }));
     PendingUser.findByIdAndDelete.mockResolvedValue(null);
     User.create.mockImplementation(async (doc) => ({ ...doc, id: 'u1', _id: 'u1' }));
 
@@ -124,16 +126,17 @@ describe('V1 — role mass assignment on registration', () => {
   test('a pending registration cannot be escalated between register and verify', async () => {
     // Even if the pending record somehow holds a privileged role, account
     // creation must not honour it.
-    PendingUser.findOne.mockResolvedValue({
+    PendingUser.findOne.mockImplementation(() => findOneResult({
       _id: 'p1',
       name: 'Mallory',
       email: 'mallory@example.com',
       password: 'hashed',
       phone: null,
       role: 'SYSTEM_ADMIN',
-      otp: '123456',
+      otp: crypto.createHash('sha256').update('123456').digest('hex'),
+      attempts: 0,
       otpExpire: new Date(Date.now() + 60000),
-    });
+    }));
     PendingUser.findByIdAndDelete.mockResolvedValue(null);
     User.create.mockImplementation(async (doc) => ({ ...doc, id: 'u1', _id: 'u1' }));
 
