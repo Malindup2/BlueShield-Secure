@@ -1,9 +1,0 @@
-PASS tests/integration/reportRoutes.test.js
-  report routes
-    √ POST /api/reports returns validation errors for incomplete payloads (48 ms)
-    √ POST /api/reports creates a report for an authenticated fisherman (22 ms)
-
-Test Suites: 1 passed, 1 total
-Tests:       2 passed, 2 total
-Snapshots:   0 total
-Time:        1.82 s, estimated 2 s

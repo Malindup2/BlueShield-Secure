@@ -1,23 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, verifyOTP, resendOTP, loginUser, forgotPassword, resetPassword, getMe, logout, listUsers, updateUserRole } = require('../controllers/authController');
+const { registerUser, verifyOTP, resendOTP, loginUser, forgotPassword, resetPassword, getMe } = require('../controllers/authController');
 const { protect } = require('../middlewares/authMiddleware');
-const authorize = require('../middlewares/authorize');
-const validate = require('../middlewares/validate');
-const { authLimiter } = require('../middlewares/rateLimiter'); // V9
-const v = require('../validations/auth.validation');
 
-router.post('/register', validate(v.register), registerUser);
-router.post('/verify-otp', authLimiter, validate(v.verifyOtp), verifyOTP);
-router.post('/resend-otp', authLimiter, validate(v.emailOnly), resendOTP);
-router.post('/login', authLimiter, validate(v.login), loginUser);
-router.post('/forgot-password', authLimiter, validate(v.emailOnly), forgotPassword);
-router.post('/reset-password/:token', authLimiter, validate(v.resetPassword), resetPassword);
-router.get('/me', protect, getMe);
-router.post('/logout', protect, logout);
-
-// V1 — role management. The only way to obtain a privileged role.
-router.get('/users', protect, authorize('SYSTEM_ADMIN'), listUsers);
-router.patch('/users/:id/role', protect, authorize('SYSTEM_ADMIN'), validate(v.updateUserRole), updateUserRole);
+router.post('/register', registerUser);
+router.post('/verify-otp', verifyOTP);
+router.post('/resend-otp', resendOTP);
+router.post('/login', loginUser);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password/:token', resetPassword);
+router.get('/me', protect, getMe); 
 
 module.exports = router;

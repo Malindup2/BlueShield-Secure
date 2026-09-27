@@ -4,67 +4,22 @@ const generateToken = require('../utils/generateToken');
 const sendEmail = require('../services/emailService');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const logger = require('../utils/logger');
-const { revoke } = require('../utils/tokenRevocation');
-
-// V7 — verification codes.
-// randomInt draws from the OS CSPRNG. Math.random() must not be used
-// a non-cryptographic generator can be recovered from predictions
-const OTP_MAX_ATTEMPTS = 5;
-
-const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
-
-// Only the digest is persisted, so a database read yields nothing usable.
-const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
-
-const otpMatches = (submitted, storedHash) => {
-  const a = Buffer.from(hashOtp(submitted));
-  const b = Buffer.from(String(storedHash || ''));
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-};
 
 // @desc    Register new user (Phase 1: OTP)
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    // V1: role is deliberately not read from the request body. Privileged
-    // roles are granted only by a SYSTEM_ADMIN through updateUserRole.
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, role } = req.body;
 
-    // V14: an address that is already registered must produce exactly the
-    // same response as a free one, or registration becomes an oracle for
-    // harvesting valid accounts. Nothing is created, and the real owner is
-    // told by email that someone tried.
+    // 1. Check if user already exists in main collection
     const userExists = await User.findOne({ email });
     if (userExists) {
-      logger.registrationBlocked(req, email, 'already_registered');
-
-      try {
-        await sendEmail({
-          email,
-          subject: 'BlueShield - Registration attempt',
-          message:
-            'Someone tried to register an account with this email address. ' +
-            'If this was you, please sign in instead, or reset your password.',
-          html:
-            '<h1>Registration attempt</h1><p>Someone tried to register an account ' +
-            'with this email address. If this was you, please sign in instead, or ' +
-            'reset your password.</p>',
-        });
-      } catch (err) {
-        console.error('Notification of duplicate registration failed:', err.message);
-      }
-
-      return res.status(201).json({
-        message: 'OTP sent to your email. Please verify to complete registration.',
-        email,
-      });
+      return res.status(400).json({ message: 'User already exists and is verified.' });
     }
 
     // 2. Generate 6-digit OTP
-    const otp = generateOtp();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // 3. Save to PendingUser collection (Upsert if already pending)
@@ -75,10 +30,9 @@ const registerUser = async (req, res, next) => {
       email,
       password, // Stored temporarily to be hashed by User model later
       phone,
-      role: 'FISHERMAN',
-      otp: hashOtp(otp),
+      role: role || 'FISHERMAN',
+      otp,
       otpExpire,
-      attempts: 0,
     });
 
     if (pendingUser) {
@@ -114,35 +68,23 @@ const registerUser = async (req, res, next) => {
 // @desc    Verify OTP and Create Account
 // @route   POST /api/auth/verify-otp
 // @access  Public
-const verifyOTP = async (req, res, next) => {
+const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    // otp and attempts are select:false, so both are requested explicitly.
-    const pendingUser = await PendingUser.findOne({ email }).select('+otp +attempts');
+    const pendingUser = await PendingUser.findOne({ email });
 
     if (!pendingUser) {
       return res.status(404).json({ message: 'Registration session expired or not found. Please register again.' });
     }
 
-    // V7: a six-digit code is only 10^6 wide, so guessing has to be bounded.
-    // Once the limit is reached the registration is discarded, even if the
-    // caller then supplies the correct code.
-    if ((pendingUser.attempts || 0) >= OTP_MAX_ATTEMPTS) {
-      await PendingUser.findByIdAndDelete(pendingUser._id);
-      return res.status(400).json({ message: 'Too many incorrect attempts. Please register again.' });
+    // Check OTP (String comparison to be safe)
+    if (String(pendingUser.otp) !== String(otp)) {
+      return res.status(400).json({ message: 'Invalid verification code' });
     }
 
     if (pendingUser.otpExpire < new Date()) {
       return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
-    }
-
-    // V7: the submitted code is hashed and compared in constant time, so
-    // neither the stored value nor the comparison timing reveals anything.
-    if (!otpMatches(otp, pendingUser.otp)) {
-      pendingUser.attempts = (pendingUser.attempts || 0) + 1;
-      await pendingUser.save();
-      return res.status(400).json({ message: 'Invalid verification code' });
     }
 
     // Move to User collection
@@ -151,9 +93,7 @@ const verifyOTP = async (req, res, next) => {
       email: pendingUser.email,
       password: pendingUser.password, // This will be hashed by User pre-save hook
       phone: pendingUser.phone,
-      // V1: defence in depth. Even if a pending record somehow carries a
-      // privileged role, account creation never honours it.
-      role: 'FISHERMAN',
+      role: pendingUser.role,
       isVerified: true,
     });
 
@@ -169,29 +109,26 @@ const verifyOTP = async (req, res, next) => {
       token: generateToken(user._id, user.role),
     });
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
 // @desc    Resend OTP
 // @route   POST /api/auth/resend-otp
 // @access  Public
-const resendOTP = async (req, res, next) => {
+const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
-    const pendingUser = await PendingUser.findOne({ email }).select('+attempts');
+    const pendingUser = await PendingUser.findOne({ email });
 
     if (!pendingUser) {
       return res.status(404).json({ message: 'Registration session not found. Please register again.' });
     }
 
-    // Generate new OTP. The attempt counter resets with the new code,
-    // but the pending record still expires on its own TTL, so requesting
-    // fresh codes cannot be used to extend a guessing window indefinitely.
-    const newOtp = generateOtp();
-    pendingUser.otp = hashOtp(newOtp);
+    // Generate new OTP
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    pendingUser.otp = newOtp;
     pendingUser.otpExpire = new Date(Date.now() + 10 * 60 * 1000);
-    pendingUser.attempts = 0;
     await pendingUser.save();
 
     try {
@@ -211,94 +148,49 @@ const resendOTP = async (req, res, next) => {
       });
     }
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
 // @desc    Authenticate a user
 // @route   POST /api/auth/login
 // @access  Public
-// V9 — per-account lockout parameters (OWASP A07:2021, CWE-307).
-// Complements the IP-based authLimiter: even an attacker rotating IPs cannot
-// keep guessing one account's password. Every failure path returns the SAME
-// 401 message so a locked account is indistinguishable from a wrong password
-// or an unknown user (avoids V14 user enumeration).
-const MAX_LOGIN_ATTEMPTS = Number(process.env.MAX_LOGIN_ATTEMPTS) || 5;
-const LOCK_TIME_MS = (Number(process.env.LOCK_TIME_MINUTES) || 15) * 60 * 1000;
-const GENERIC_LOGIN_ERROR = 'Invalid email or password';
-
-const loginUser = async (req, res, next) => {
+const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Lockout state lives in select:false fields, so request them explicitly.
-    const user = await User.findOne({ email }).select(
-      '+password +failedLoginAttempts +lockUntil'
-    );
-
-    // Account currently locked: refuse without checking the password, using the
-    // generic message so the lock is not observable to an attacker.
-    if (user && user.lockUntil && user.lockUntil > Date.now()) {
-      logger.loginFailed(req, email, 'account_locked');
-      return res.status(401).json({ message: GENERIC_LOGIN_ERROR });
-    }
+    // Check for user email & select password field explicitly
+    const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
-      // Success: clear any accumulated failures and record the login.
-      user.failedLoginAttempts = 0;
-      user.lockUntil = null;
+      // Update lastLoginAt
       user.lastLoginAt = Date.now();
       await user.save();
 
-      logger.loginSucceeded(req, email);
-
-      return res.json({
+      res.json({
         _id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         token: generateToken(user._id, user.role),
       });
+    } else {
+      res.status(401).json({ message: 'Invalid email or password' });
     }
-
-    // Failure against a real account: count it and lock once the threshold is
-    // reached. (An unknown email falls through to the same generic response,
-    // so the two are indistinguishable.)
-    if (user) {
-      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-      if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
-        user.lockUntil = new Date(Date.now() + LOCK_TIME_MS);
-      }
-      await user.save();
-    }
-
-    // V14: the same message whether the address is unknown or the
-    // password is wrong, so sign-in cannot be used to enumerate accounts.
-    // Which of the two it was is recorded server-side only.
-    logger.loginFailed(req, email, user ? 'bad_password' : 'unknown_account');
-    return res.status(401).json({ message: GENERIC_LOGIN_ERROR });
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
 // @desc    Forgot Password
 // @route   POST /api/auth/forgot-password
 // @access  Public
-const forgotPassword = async (req, res, next) => {
-  // V14: the response is identical whether or not the address is
-  // registered, so this endpoint cannot be used to test which addresses
-  // hold accounts. Whether one existed is recorded server-side only.
-  const ACCEPTED = {
-    message: 'If an account exists for that address, a reset link has been sent.',
-  };
-
+const forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
-    logger.passwordResetRequested(req, req.body.email, Boolean(user));
 
     if (!user) {
-      return res.status(200).json(ACCEPTED);
+      return res.status(404).json({ message: 'User not found with that email' });
     }
 
     // Get reset token
@@ -323,25 +215,22 @@ const forgotPassword = async (req, res, next) => {
         html: `<h1>Password Reset</h1><p>Click <a href="${frontendResetUrl}">here</a> to reset your password.</p>`,
       });
 
-      res.status(200).json(ACCEPTED);
+      res.status(200).json({ message: 'Email sent' });
     } catch (err) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save();
-      console.error('Password reset email failed:', err.message);
-      // Still the same response: a delivery failure must not reveal that
-      // the address was valid.
-      res.status(200).json(ACCEPTED);
+      res.status(500).json({ message: 'Email could not be sent' });
     }
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
 // @desc    Reset Password
 // @route   POST /api/auth/reset-password/:token
 // @access  Public
-const resetPassword = async (req, res, next) => {
+const resetPassword = async (req, res) => {
   try {
     // Get hashed token
     const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
@@ -366,7 +255,7 @@ const resetPassword = async (req, res, next) => {
       token: generateToken(user._id, user.role),
     });
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -377,81 +266,6 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
-// @desc    Sign out and withdraw the presented token
-// @route   POST /api/auth/logout
-// @access  Private
-//
-// V13: signing out previously only cleared localStorage, so the token
-// stayed valid until it expired. The token is now recorded as revoked and
-// refused from here on.
-const logout = async (req, res, next) => {
-  try {
-    if (req.tokenClaims) {
-      await revoke(req.tokenClaims, req.user && req.user._id, 'logout');
-      logger.loginSucceeded(req, req.user ? req.user.email : 'unknown');
-    }
-
-    res.status(200).json({ message: 'Signed out' });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    List users so an administrator can select one to promote
-// @route   GET /api/auth/users
-// @access  Private (SYSTEM_ADMIN)
-const listUsers = async (req, res, next) => {
-  try {
-    const users = await User.find({})
-      .select('name email role isActive isVerified createdAt')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({ users, total: users.length });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Grant or change a user's role
-// @route   PATCH /api/auth/users/:id/role
-// @access  Private (SYSTEM_ADMIN)
-//
-// V1: this is the only path by which a privileged role can be obtained.
-// Registration always produces a FISHERMAN, so privilege is granted by an
-// administrator rather than claimed by the account holder.
-const updateUserRole = async (req, res, next) => {
-  try {
-    const { role } = req.body;
-
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // An administrator cannot change their own role, so the last
-    // SYSTEM_ADMIN cannot accidentally demote themselves and lock everyone
-    // out of role management.
-    if (user._id.toString() === req.user._id.toString()) {
-      return res.status(400).json({ message: 'You cannot change your own role' });
-    }
-
-    const previousRole = user.role;
-    user.role = role;
-    await user.save();
-
-    console.info(
-      `[Security] Role change: ${user.email} ${previousRole} -> ${role} by ${req.user.email}`
-    );
-
-    res.status(200).json({
-      message: 'Role updated',
-      user: { _id: user.id, name: user.name, email: user.email, role: user.role },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 module.exports = {
   registerUser,
   verifyOTP,
@@ -460,7 +274,4 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
-  logout,
-  listUsers,
-  updateUserRole,
-};
+};

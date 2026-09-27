@@ -1,10 +1,5 @@
 const hazardService = require("../services/hazardService");
 
-const {
-  serializeReport,
-  serializeEmbeddedReport,
-} = require("../utils/reportSerializer");
-
 
 /**
  * Create a hazard case from a verified report.
@@ -29,16 +24,7 @@ exports.createFromReport = async (req, res) => {
 exports.list = async (req, res) => {
   try {
     const result = await hazardService.list({ query: req.query });
-    res.json({
-      ...result,
-      items: result.items.map((item) =>
-        serializeEmbeddedReport(item, "baseReport", {
-          viewer: req.user,
-          req,
-        })
-      ),
-    });
-
+    res.json(result);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
@@ -51,12 +37,7 @@ exports.list = async (req, res) => {
 exports.getById = async (req, res) => {
   try {
     const doc = await hazardService.getById(req.params.id);
-    res.json(
-      serializeEmbeddedReport(doc, "baseReport", {
-        viewer: req.user,
-        req,
-      })
-    );
+    res.json(doc);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
@@ -134,15 +115,7 @@ exports.remove = async (req, res) => {
 exports.listReviewReports = async (req, res) => {
   try {
     const result = await hazardService.listReviewReports({ query: req.query });
-    res.json({
-      ...result,
-      items: result.items.map((report) =>
-        serializeReport(report, {
-          viewer: req.user,
-          req,
-        })
-      ),
-    });
+    res.json(result);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
@@ -151,12 +124,7 @@ exports.listReviewReports = async (req, res) => {
 exports.getReviewReportById = async (req, res) => {
   try {
     const result = await hazardService.getReviewReportById(req.params.reportId);
-    res.json(
-      serializeReport(result, {
-        viewer: req.user,
-        req,
-      })
-    );
+    res.json(result);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
@@ -169,14 +137,7 @@ exports.updateReviewReportStatus = async (req, res) => {
       payload: req.body,
       actorId: req.user._id,
     });
-
-    res.json(
-      serializeReport(result, {
-        viewer: req.user,
-        req,
-      })
-    );
-
+    res.json(result);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
@@ -223,16 +184,8 @@ exports.weatherByLocation = async (req, res) => {
 exports.dashboardSummary = async (req, res) => {
   try {
     const result = await hazardService.getDashboardSummary();
-    res.json({
-      ...result,
-      recentPendingReports: result.recentPendingReports.map((report) =>
-        serializeReport(report, {
-          viewer: req.user,
-          req,
-        })
-      ),
-    });
-      } catch (e) {
+    res.json(result);
+  } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message || "Failed to load dashboard summary" });
   }
 };

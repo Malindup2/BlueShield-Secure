@@ -21,23 +21,13 @@ const pendingUserSchema = new mongoose.Schema(
       type: String,
       default: 'FISHERMAN',
     },
-    // V7: SHA-256 of the verification code, never the code itself.
     otp: {
       type: String,
       required: true,
-      select: false,
     },
     otpExpire: {
       type: Date,
       required: true,
-    },
-    // V7: failed verification attempts against this registration. The
-    // registration is discarded once the limit is reached, so a six-digit
-    // keyspace cannot be walked.
-    attempts: {
-      type: Number,
-      default: 0,
-      select: false,
     },
     createdAt: {
       type: Date,

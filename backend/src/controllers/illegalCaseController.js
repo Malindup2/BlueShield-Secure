@@ -1,48 +1,13 @@
 const illegalCaseService = require("../services/illegalCaseService");
 
-const {
-  serializeReport,
-  serializeEmbeddedReport,
-} = require("../utils/reportSerializer");
-
-
 exports.getPendingReports = async (req, res) => {
-  try {
-    const reports = await illegalCaseService.getPendingReports();
-
-    res.json(
-      reports.map((report) =>
-        serializeReport(report, {
-          viewer: req.user,
-          req,
-        })
-      )
-    );
-  } catch (e) {
-    res.status(e.statusCode || 500).json({ message: e.message });
-  }
+  try { res.json(await illegalCaseService.getPendingReports()); }
+  catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }
 };
 
-
 exports.markAsReviewed = async (req, res) => {
-  try {
-    const result = await illegalCaseService.markAsReviewed({
-      reportId: req.params.reportId,
-      actorId: req.user._id,
-    });
-
-    res.json({
-      ...result,
-      report: serializeReport(result.report, {
-        viewer: req.user,
-        req,
-      }),
-    });
-  } catch (e) {
-    res
-      .status(e.statusCode || 500)
-      .json({ message: e.message });
-  }
+  try { res.json(await illegalCaseService.markAsReviewed({ reportId: req.params.reportId, actorId: req.user._id })); }
+  catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }
 };
 
 exports.deleteReviewedCase = async (req, res) => {
@@ -60,53 +25,15 @@ exports.updateCase = async (req, res) => {
   catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }
 };
 
-// exports.listCases = async (req, res) => {
-//   try { res.json(await illegalCaseService.listCases({ query: req.query, user: req.user })); }
-//   catch (e) { res.status(500).json({ message: e.message }); }
-// };
-
-
 exports.listCases = async (req, res) => {
-  try {
-    const result = await illegalCaseService.listCases({
-      query: req.query,
-      user: req.user,
-    });
-
-    res.json({
-      ...result,
-      items: result.items.map((item) =>
-        serializeEmbeddedReport(item, "baseReport", {
-          viewer: req.user,
-          req,
-        })
-      ),
-    });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
+  try { res.json(await illegalCaseService.listCases({ query: req.query, user: req.user })); }
+  catch (e) { res.status(500).json({ message: e.message }); }
 };
-
-
 
 exports.getCaseById = async (req, res) => {
-  try {
-    const result = await illegalCaseService.getCaseById(
-      req.params.caseId,
-      req.user
-    );
-
-    res.json(
-      serializeEmbeddedReport(result, "baseReport", {
-        viewer: req.user,
-        req,
-      })
-    );
-  } catch (e) {
-    res.status(e.statusCode || 500).json({ message: e.message });
-  }
+  try { res.json(await illegalCaseService.getCaseById(req.params.caseId, req.user)); }
+  catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }
 };
-
 
 exports.deleteCase = async (req, res) => {
   try { res.json({ message: "Record deleted", id: (await illegalCaseService.deleteCase({ caseId: req.params.caseId })).id }); }

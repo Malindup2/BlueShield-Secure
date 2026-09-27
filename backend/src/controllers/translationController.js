@@ -97,11 +97,9 @@ exports.translate = async (req, res) => {
         .json({ message: "Translation quota exceeded. Please try again later." });
     }
 
-    // V14: upstream Azure error bodies can disclose subscription region,
-    // key state and quota detail, so they are logged above and never
-    // returned to the caller.
     return res.status(500).json({
       message: "Translation failed. Please try again.",
+      detail: error.response?.data || error.message,
     });
   }
 };

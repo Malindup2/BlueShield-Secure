@@ -6,7 +6,6 @@
     "test": "cross-env NODE_ENV=test jest --runInBand",
     "test:unit": "cross-env NODE_ENV=test jest --runInBand tests/unit",
     "test:integration": "cross-env NODE_ENV=test jest --runInBand tests/integration",
-    "test:security": "cross-env NODE_ENV=test jest --runInBand tests/security",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
     "test:coverage": "cross-env NODE_ENV=test jest --coverage",
     "test:performance": "artillery run tests/performance/load-test.yml",
