@@ -130,7 +130,7 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 | V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ✅ |
 | V10 | Sensitive fields exposed via `/api/auth/me` | A02 | 200 | High | Pabasara | ☐ |
 | V11 | Secrets committed to git history | A05 | 540 | Medium | Dias | ☐ |
-| V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ☐ |
+| V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ✅ |
 | V13 | Insecure JWT storage and lifecycle | A02/A07 | 522/613 | Medium | Thilakumara | ☐ |
 | V14 | User enumeration and verbose error leakage | A01/A09 | 204/209 | Medium | Thilakumara | ☐ |
 | V15 | Weak administrator-role validation | A01 | 697 | Medium | Pabasara | ☐ |
