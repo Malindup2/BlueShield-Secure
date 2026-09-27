@@ -36,7 +36,10 @@ exports.create = async (req, res) => {
 exports.listMine = async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
-        const query = { reportedBy: req.user._id };
+        const query = {
+            reportedBy: req.user._id,
+            isDeleted: { $ne: true },
+        };
 
         const reports = await Report.find(query)
             .limit(limit * 1)
@@ -59,7 +62,9 @@ exports.listMine = async (req, res) => {
 exports.list = async (req, res) => {
     try {
         const { page = 1, limit = 10, reportType, severity, status } = req.query;
-        const query = {};
+        const query = {
+            isDeleted: { $ne: true },
+        };
         if (reportType) query.reportType = reportType;
         if (severity) query.severity = severity;
         if (status) query.status = status;
@@ -85,7 +90,10 @@ exports.list = async (req, res) => {
 
 exports.getById = async (req, res) => {
     try {
-        const report = await Report.findById(req.params.reportId).populate("reportedBy", "name email");
+        const report = await Report.findOne({
+            _id: req.params.reportId,
+            isDeleted: { $ne: true },
+        }).populate("reportedBy", "name email");
         if (!report) {
             return res.status(404).json({ message: "Report not found" });
         }
@@ -107,13 +115,45 @@ exports.update = async (req, res) => {
     }   
 };
 
+
+
 exports.remove = async (req, res) => {
     try {
-        const report = await Report.findByIdAndDelete(req.params.reportId);
+        const report = await Report.findOneAndUpdate(
+            {
+                _id: req.params.reportId,
+                isDeleted: { $ne: true },
+            },
+            {
+                $set: {
+                    isDeleted: true,
+                    deletedBy: req.user._id,
+                    deletedAt: new Date(),
+                },
+            },
+            {
+                returnDocument: "after",
+                runValidators: true,
+            }
+        );
+
         if (!report) {
             return res.status(404).json({ message: "Report not found" });
         }
-        res.json({ message: "Report deleted successfully" });
+
+        console.info(
+            `[Security] Report soft-deleted: ${report._id} by ${req.user.email} (${req.user.role})`
+        );
+
+        res.status(200).json({
+            message: "Report deleted successfully",
+            report: {
+                _id: report._id,
+                isDeleted: report.isDeleted,
+                deletedBy: report.deletedBy,
+                deletedAt: report.deletedAt,
+            },
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
