@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { isRevoked } = require('../utils/tokenRevocation');
 
 const protect = async (req, res, next) => {
   let token;
@@ -14,6 +15,14 @@ const protect = async (req, res, next) => {
 
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // V13: a signed, unexpired token may still have been withdrawn.
+      if (await isRevoked(decoded.jti)) {
+        return res.status(401).json({ message: 'Not authorized, token failed' });
+      }
+
+      // V13: kept so logout can revoke the exact token presented.
+      req.tokenClaims = decoded;
 
       // Get user from the token, exclude password
       req.user = await User.findById(decoded.id).select('-password');

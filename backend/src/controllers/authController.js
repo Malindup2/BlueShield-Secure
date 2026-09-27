@@ -5,6 +5,7 @@ const sendEmail = require('../services/emailService');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
+const { revoke } = require('../utils/tokenRevocation');
 
 // V7 — verification codes.
 // randomInt draws from the OS CSPRNG. Math.random() must not be used
@@ -345,6 +346,26 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
+// @desc    Sign out and withdraw the presented token
+// @route   POST /api/auth/logout
+// @access  Private
+//
+// V13: signing out previously only cleared localStorage, so the token
+// stayed valid until it expired. The token is now recorded as revoked and
+// refused from here on.
+const logout = async (req, res, next) => {
+  try {
+    if (req.tokenClaims) {
+      await revoke(req.tokenClaims, req.user && req.user._id, 'logout');
+      logger.loginSucceeded(req, req.user ? req.user.email : 'unknown');
+    }
+
+    res.status(200).json({ message: 'Signed out' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    List users so an administrator can select one to promote
 // @route   GET /api/auth/users
 // @access  Private (SYSTEM_ADMIN)
@@ -408,6 +429,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  logout,
   listUsers,
   updateUserRole,
 };
