@@ -54,6 +54,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Exchanges the single-use handle returned by the Google OAuth callback for the session.
+  const completeOAuthLogin = async (handle) => {
+    const response = await axios.post(`${API_BASE_URL}/api/auth/oauth/session`, {
+      handle,
+    });
+    const data = response.data;
+
+    localStorage.setItem("user", JSON.stringify(data));
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("userRole", data.role);
+
+    setUser(data);
+    return data;
+  };
+
   const logout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -62,7 +77,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, logout, register, completeOAuthLogin }}
+    >
       {children}
     </AuthContext.Provider>
   );

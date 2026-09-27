@@ -8,6 +8,7 @@ import Register from "./pages/auth/Register";
 import VerifyOTP from "./pages/auth/VerifyOTP";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import OAuthCallback from "./pages/auth/OAuthCallback";
 import CreateReport from "./pages/SubmitAReport";
 import MyReports from "./pages/MyReports";
 
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
 
           <Route path="/dashboard" element={<DashboardLayout />}>
 
