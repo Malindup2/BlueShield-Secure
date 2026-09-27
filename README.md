@@ -117,7 +117,7 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 
 17 vulnerabilities identified across 8 OWASP Top 10 (2021) categories.
 
-**Progress: 6 of 17 remediated** — V1, V3, V6, V7, V13, V14.
+**Progress: 7 of 17 remediated** — V1, V3, V6, V7, V9, V13, V14.
 The OAuth 2.0 / OpenID Connect feature (Google, Authorization Code with PKCE) is implemented and verified end to end.
 
 Categories closed so far: **A01, A02, A03, A07, A09**.
@@ -132,7 +132,7 @@ Categories closed so far: **A01, A02, A03, A07, A09**.
 | V6 | NoSQL injection in authentication flows | A03 | 943 | High | Dabarera | ✅ |
 | V7 | Predictable OTP generation | A02 | 338/330 | High | Thilakumara | ✅ |
 | V8 | OTP disclosed in HTTP response | A04 | 200 | High | Pabasara | ☐ |
-| V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ☐ |
+| V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ✅ |
 | V10 | Sensitive fields exposed via `/api/auth/me` | A02 | 200 | High | Pabasara | ☐ |
 | V11 | Secrets committed to git history | A05 | 540 | Medium | Dias | ☐ |
 | V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ☐ |
