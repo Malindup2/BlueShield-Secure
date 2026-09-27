@@ -117,27 +117,34 @@ Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
 
 17 vulnerabilities identified across 8 OWASP Top 10 (2021) categories.
 
+**Progress: 9 of 17 remediated** — V1, V3, V6, V7, V9, V12, V13, V14, V17.
+The OAuth 2.0 / OpenID Connect feature (Google, Authorization Code with PKCE) is implemented and verified end to end.
+
+Categories closed so far: **A01, A02, A03, A05, A07, A09**.
+
 | ID | Vulnerability | OWASP | CWE | Severity | Owner | Status |
 |---|---|---|---|---|---|---|
-| V1 | Privilege escalation via role mass assignment | A01 | 269/915 | Critical | Thilakumara | ☐ |
+| V1 | Privilege escalation via role mass assignment | A01 | 269/915 | Critical | Thilakumara | ✅ |
 | V2 | Unauthenticated vessel API endpoints | A01 | 306 | Critical | Pabasara | ☐ |
-| V3 | Missing authorization on report deletion | A01 | 862 | Critical | Dias | ☐ |
+| V3 | Missing authorization on report deletion | A01 | 862 | Critical | Dias | ✅ |
 | V4 | IDOR and mass assignment on report update | A01 | 639/915 | High | Dias | ☐ |
 | V5 | Anonymous reporter de-anonymisation | A01/A02 | 359 | High | Dias | ☐ |
-| V6 | NoSQL injection in authentication flows | A03 | 943 | High | Dabarera | ☐ |
-| V7 | Predictable OTP generation | A02 | 338/330 | High | Thilakumara | ☐ |
+| V6 | NoSQL injection in authentication flows | A03 | 943 | High | Dabarera | ✅ |
+| V7 | Predictable OTP generation | A02 | 338/330 | High | Thilakumara | ✅ |
 | V8 | OTP disclosed in HTTP response | A04 | 200 | High | Pabasara | ☐ |
-| V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ☐ |
+| V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ✅ |
 | V10 | Sensitive fields exposed via `/api/auth/me` | A02 | 200 | High | Pabasara | ☐ |
 | V11 | Secrets committed to git history | A05 | 540 | Medium | Dias | ☐ |
-| V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ☐ |
-| V13 | Insecure JWT storage and lifecycle | A02/A07 | 522/613 | Medium | Thilakumara | ☐ |
-| V14 | User enumeration and verbose error leakage | A01/A09 | 204/209 | Medium | Thilakumara | ☐ |
+| V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ✅ |
+| V13 | Insecure JWT storage and lifecycle | A02/A07 | 522/613 | Medium | Thilakumara | ✅ |
+| V14 | User enumeration and verbose error leakage | A01/A09 | 204/209 | Medium | Thilakumara | ✅ |
 | V15 | Weak administrator-role validation | A01 | 697 | Medium | Pabasara | ☐ |
 | V16 | Vulnerable third-party dependencies | A06 | 1035 | Medium | Pabasara | ☐ |
-| V17 | Insufficient transport security | A02 | 319/311 | Medium | Dabarera | ☐ |
+| V17 | Insufficient transport security | A02 | 319/311 | Medium | Dabarera | ✅ |
 
 **Documented as accepted residual risk:** DOM XSS sinks · LLM prompt injection · over-broad report read access.
+
+> **V6 verified impact.** Black-box testing (`evidence/V06-before.txt`) confirms the operator payload reaches Mongo, but the impact is narrower than a login bypass: `POST /login` with `{"$ne":null}` in both fields returns **500** (`bcrypt.compare` rejects the non-string password) rather than a signed JWT. The demonstrated impact is on `POST /forgot-password` — an operator matches an **arbitrary** account, so a password-reset token is generated and stored for a user the attacker never named (500 after the match, vs 404 for a bogus literal email) — and on `POST /register`, where `findOneAndDelete({email:{$ne:null}})` deletes another user's pending signup. Discovery credit: manual code review + the black-box PoC (njsscan has no rule for this Mongoose pattern; Semgrep does not run on native Windows).
 
 ---
 

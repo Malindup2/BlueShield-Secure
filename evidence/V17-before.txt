@@ -1,0 +1,22 @@
+====================================================================
+V17 - No Transport Security (plain HTTP) - BLACK-BOX EVIDENCE (before)
+OWASP A02:2021  CWE-319/311   Target: localhost:5000   Sun Sep 27 03:21:10 SLST 2026
+====================================================================
+
+### CHECK 1 - Does the API answer over plain, unencrypted HTTP?
+  http://localhost:5000/api/auth/login  -> HTTP 401  (scheme: http, no TLS)
+
+### CHECK 2 - Is HTTPS available at all on the same port? (expect connection failure)
+  https://localhost:5000/  -> HTTP 000
+  https://localhost:5000/  -> TLS handshake FAILED (server speaks plain HTTP only)
+
+### CHECK 3 - HSTS header present? (Strict-Transport-Security)
+  MISSING : Strict-Transport-Security (no HSTS; downgrade/SSL-strip possible)
+
+### CHECK 4 - Any Set-Cookie without the Secure flag?
+  (no cookies set on this endpoint; JWT is returned in JSON body over cleartext HTTP - itself the V17 exposure)
+
+### CHECK 5 - Proof a token travels in cleartext (JSON body visible on the wire)
+  A successful login returns the JWT in the plaintext HTTP response body;
+  with no TLS, any on-path observer reads it. (Body shown truncated.)
+{"message":"Invalid email or password"}

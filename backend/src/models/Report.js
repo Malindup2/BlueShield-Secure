@@ -78,6 +78,22 @@ const reportSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+     isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
