@@ -69,11 +69,28 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    setUser(null);
+  // V13: signing out must withdraw the token server-side, not just forget
+  // it locally. Clearing storage happens regardless, so a failed call
+  // cannot leave the user apparently signed in.
+  const logout = async () => {
+    const token = localStorage.getItem("token");
+
+    try {
+      if (token) {
+        await axios.post(
+          `${API_BASE_URL}/api/auth/logout`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    } catch {
+      // Already expired or unreachable; 
+    } finally {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("userRole");
+      setUser(null);
+    }
   };
 
   return (
