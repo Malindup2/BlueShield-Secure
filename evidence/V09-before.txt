@@ -1,0 +1,62 @@
+  console.log
+    Vessel Tracker - API keys loaded:
+
+      at Object.log (src/services/vesselTrackerService.js:29:9)
+
+  console.log
+      DATADOCKED_API_KEY exists: false
+
+      at Object.log (src/services/vesselTrackerService.js:30:9)
+
+  console.log
+      MYSHIPTRACKING_API_KEY exists: false
+
+      at Object.log (src/services/vesselTrackerService.js:31:9)
+
+  console.log
+      BEECEPTOR_VESSEL_API_URL exists: false
+
+      at Object.log (src/services/vesselTrackerService.js:32:9)
+
+(node:26304) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL tests/security/v09-rate-limit-lockout.test.js
+  ● V9 — rate limiting / account lockout on login › repeated failed logins are eventually throttled with 429
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 429
+    Received array: [401, 401, 401, 401, 401, 401, 401, 401, 401, 401, …]
+
+    [0m [90m 53 |[39m     [90m// Vulnerable baseline: every status is 401 and this expectation fails.[39m
+     [90m 54 |[39m     [90m// Fixed build: at least one attempt is rejected with 429 before the end.[39m
+    [31m[1m>[22m[39m[90m 55 |[39m     expect(statuses)[33m.[39mtoContain([35m429[39m)[33m;[39m
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 56 |[39m   })[33m;[39m
+     [90m 57 |[39m
+     [90m 58 |[39m   test([32m'the account is locked out before all attempts are exhausted'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.toContain (tests/security/v09-rate-limit-lockout.test.js:55:22)
+
+  ● V9 — rate limiting / account lockout on login › the account is locked out before all attempts are exhausted
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0
+    Received:    -1
+
+    [0m [90m 62 |[39m     [90m// A limiter/lockout must trigger strictly before the last attempt, not[39m
+     [90m 63 |[39m     [90m// only on the final request.[39m
+    [31m[1m>[22m[39m[90m 64 |[39m     expect(firstThrottled)[33m.[39mtoBeGreaterThanOrEqual([35m0[39m)[33m;[39m
+     [90m    |[39m                            [31m[1m^[22m[39m
+     [90m 65 |[39m     expect(firstThrottled)[33m.[39mtoBeLessThan([33mATTEMPTS[39m [33m-[39m [35m1[39m)[33m;[39m
+     [90m 66 |[39m   })[33m;[39m
+     [90m 67 |[39m })[33m;[39m[0m
+
+      at Object.toBeGreaterThanOrEqual (tests/security/v09-rate-limit-lockout.test.js:64:28)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 2 total
+Snapshots:   0 total
+Time:        1.362 s, estimated 2 s
+Ran all test suites matching tests/security/v09-rate-limit-lockout.test.js.
