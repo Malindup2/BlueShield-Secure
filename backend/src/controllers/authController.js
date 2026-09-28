@@ -4,6 +4,8 @@ const generateToken = require('../utils/generateToken');
 const sendEmail = require('../services/emailService');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const logger = require('../utils/logger');
+const { revoke } = require('../utils/tokenRevocation');
 
 // V7 — verification codes.
 // randomInt draws from the OS CSPRNG. Math.random() must not be used
@@ -31,10 +33,34 @@ const registerUser = async (req, res, next) => {
     // roles are granted only by a SYSTEM_ADMIN through updateUserRole.
     const { name, email, password, phone } = req.body;
 
-    // 1. Check if user already exists in main collection
+    // V14: an address that is already registered must produce exactly the
+    // same response as a free one, or registration becomes an oracle for
+    // harvesting valid accounts. Nothing is created, and the real owner is
+    // told by email that someone tried.
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists and is verified.' });
+      logger.registrationBlocked(req, email, 'already_registered');
+
+      try {
+        await sendEmail({
+          email,
+          subject: 'BlueShield - Registration attempt',
+          message:
+            'Someone tried to register an account with this email address. ' +
+            'If this was you, please sign in instead, or reset your password.',
+          html:
+            '<h1>Registration attempt</h1><p>Someone tried to register an account ' +
+            'with this email address. If this was you, please sign in instead, or ' +
+            'reset your password.</p>',
+        });
+      } catch (err) {
+        console.error('Notification of duplicate registration failed:', err.message);
+      }
+
+      return res.status(201).json({
+        message: 'OTP sent to your email. Please verify to complete registration.',
+        email,
+      });
     }
 
     // 2. Generate 6-digit OTP
@@ -87,7 +113,7 @@ const registerUser = async (req, res, next) => {
 // @desc    Verify OTP and Create Account
 // @route   POST /api/auth/verify-otp
 // @access  Public
-const verifyOTP = async (req, res) => {
+const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
@@ -142,14 +168,14 @@ const verifyOTP = async (req, res) => {
       token: generateToken(user._id, user.role),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Resend OTP
 // @route   POST /api/auth/resend-otp
 // @access  Public
-const resendOTP = async (req, res) => {
+const resendOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
     const pendingUser = await PendingUser.findOne({ email }).select('+attempts');
@@ -183,49 +209,94 @@ const resendOTP = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Authenticate a user
 // @route   POST /api/auth/login
 // @access  Public
-const loginUser = async (req, res) => {
+// V9 — per-account lockout parameters (OWASP A07:2021, CWE-307).
+// Complements the IP-based authLimiter: even an attacker rotating IPs cannot
+// keep guessing one account's password. Every failure path returns the SAME
+// 401 message so a locked account is indistinguishable from a wrong password
+// or an unknown user (avoids V14 user enumeration).
+const MAX_LOGIN_ATTEMPTS = Number(process.env.MAX_LOGIN_ATTEMPTS) || 5;
+const LOCK_TIME_MS = (Number(process.env.LOCK_TIME_MINUTES) || 15) * 60 * 1000;
+const GENERIC_LOGIN_ERROR = 'Invalid email or password';
+
+const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Check for user email & select password field explicitly
-    const user = await User.findOne({ email }).select('+password');
+    // Lockout state lives in select:false fields, so request them explicitly.
+    const user = await User.findOne({ email }).select(
+      '+password +failedLoginAttempts +lockUntil'
+    );
+
+    // Account currently locked: refuse without checking the password, using the
+    // generic message so the lock is not observable to an attacker.
+    if (user && user.lockUntil && user.lockUntil > Date.now()) {
+      logger.loginFailed(req, email, 'account_locked');
+      return res.status(401).json({ message: GENERIC_LOGIN_ERROR });
+    }
 
     if (user && (await user.matchPassword(password))) {
-      // Update lastLoginAt
+      // Success: clear any accumulated failures and record the login.
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
       user.lastLoginAt = Date.now();
       await user.save();
 
-      res.json({
+      logger.loginSucceeded(req, email);
+
+      return res.json({
         _id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         token: generateToken(user._id, user.role),
       });
-    } else {
-      res.status(401).json({ message: 'Invalid email or password' });
     }
+
+    // Failure against a real account: count it and lock once the threshold is
+    // reached. (An unknown email falls through to the same generic response,
+    // so the two are indistinguishable.)
+    if (user) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.lockUntil = new Date(Date.now() + LOCK_TIME_MS);
+      }
+      await user.save();
+    }
+
+    // V14: the same message whether the address is unknown or the
+    // password is wrong, so sign-in cannot be used to enumerate accounts.
+    // Which of the two it was is recorded server-side only.
+    logger.loginFailed(req, email, user ? 'bad_password' : 'unknown_account');
+    return res.status(401).json({ message: GENERIC_LOGIN_ERROR });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Forgot Password
 // @route   POST /api/auth/forgot-password
 // @access  Public
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res, next) => {
+  // V14: the response is identical whether or not the address is
+  // registered, so this endpoint cannot be used to test which addresses
+  // hold accounts. Whether one existed is recorded server-side only.
+  const ACCEPTED = {
+    message: 'If an account exists for that address, a reset link has been sent.',
+  };
+
   try {
     const user = await User.findOne({ email: req.body.email });
+    logger.passwordResetRequested(req, req.body.email, Boolean(user));
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found with that email' });
+      return res.status(200).json(ACCEPTED);
     }
 
     // Get reset token
@@ -250,22 +321,25 @@ const forgotPassword = async (req, res) => {
         html: `<h1>Password Reset</h1><p>Click <a href="${frontendResetUrl}">here</a> to reset your password.</p>`,
       });
 
-      res.status(200).json({ message: 'Email sent' });
+      res.status(200).json(ACCEPTED);
     } catch (err) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save();
-      res.status(500).json({ message: 'Email could not be sent' });
+      console.error('Password reset email failed:', err.message);
+      // Still the same response: a delivery failure must not reveal that
+      // the address was valid.
+      res.status(200).json(ACCEPTED);
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // @desc    Reset Password
 // @route   POST /api/auth/reset-password/:token
 // @access  Public
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res, next) => {
   try {
     // Get hashed token
     const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
@@ -290,7 +364,7 @@ const resetPassword = async (req, res) => {
       token: generateToken(user._id, user.role),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
@@ -299,6 +373,26 @@ const resetPassword = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   res.status(200).json(req.user);
+};
+
+// @desc    Sign out and withdraw the presented token
+// @route   POST /api/auth/logout
+// @access  Private
+//
+// V13: signing out previously only cleared localStorage, so the token
+// stayed valid until it expired. The token is now recorded as revoked and
+// refused from here on.
+const logout = async (req, res, next) => {
+  try {
+    if (req.tokenClaims) {
+      await revoke(req.tokenClaims, req.user && req.user._id, 'logout');
+      logger.loginSucceeded(req, req.user ? req.user.email : 'unknown');
+    }
+
+    res.status(200).json({ message: 'Signed out' });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // @desc    List users so an administrator can select one to promote
@@ -364,6 +458,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  logout,
   listUsers,
   updateUserRole,
 };
