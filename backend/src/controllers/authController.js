@@ -95,12 +95,11 @@ const registerUser = async (req, res, next) => {
           message: 'OTP sent to your email. Please verify to complete registration.',
           email: pendingUser.email,
         });
-      } catch (err) {
+            } catch (err) {
         console.error('Email send failed:', err);
         res.status(201).json({
           message: 'User details saved, but verification email failed to send. Check your configuration.',
-          email: pendingUser.email,
-          debugCode: otp, // For development purposes
+          email: pendingUser.email,  //debug code is removed
         });
       }
     } else {
@@ -203,11 +202,10 @@ const resendOTP = async (req, res, next) => {
       });
 
       res.status(200).json({ message: 'New OTP sent to your email.' });
-    } catch (err) {
-      console.error('Resend Email failed:', err);
+        } catch (err) {
+      console.error('Resend Email failed:', err); //debug code removed
       res.status(500).json({ 
         message: 'Failed to send new OTP. Check email configuration.',
-        debugCode: newOtp // Allow testing if email fails
       });
     }
   } catch (error) {
