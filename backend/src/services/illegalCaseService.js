@@ -164,7 +164,7 @@ exports.listCases = async ({ query, user }) => {
   const sort = query.sort || "-createdAt";
   const [items, total] = await Promise.all([
     IllegalCase.find(filter)
-      .populate("baseReport", "title reportType reportedBy location vessel severity description")
+      .populate("baseReport", "title reportType reportedBy location vessel severity description isAnonymous")
       .populate("createdBy", "name email")
       .populate("assignedOfficer", "name email")
       .sort(sort).skip(skip).limit(limit),

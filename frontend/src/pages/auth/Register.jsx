@@ -1,28 +1,22 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, User, UserCircle, ArrowRight, ShieldCheck } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Register() {
+  // V1: no role field. Accounts are always created as FISHERMAN; a
+  // SYSTEM_ADMIN grants any other role afterwards.
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
-    role: "FISHERMAN",
     password: "",
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
-
-  const roles = [
-    { id: "FISHERMAN", label: "Fisherman" },
-    { id: "OFFICER", label: "Coast Guard / Officer" },
-    { id: "HAZARD_ADMIN", label: "Hazard Admin" },
-    { id: "ILLEGAL_ADMIN", label: "Illegal Case Admin" },
-  ];
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -130,30 +124,6 @@ export default function Register() {
                     className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition"
                     placeholder="+94 77 123 4567"
                   />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700" htmlFor="role">
-                  Select your Role
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <UserCircle className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <select
-                    id="role"
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition bg-white appearance-none"
-                  >
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </div>
 

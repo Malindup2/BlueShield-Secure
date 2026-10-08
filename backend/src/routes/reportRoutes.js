@@ -33,8 +33,15 @@ router.get("/my", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN"), ctr
 router.get("/", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.list);
 router.get("/:reportId", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getById);
 router.patch("/:reportId", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN"), validate(v.update), ctrl.update);
-router.delete("/:reportId", protect, validate(v.getById), ctrl.remove); 
 //only system_admin can delete a report, but officer and fisherman can update a report (e.g. change the status of the report or add more details to the report)
+router.delete(
+  "/:reportId",
+  protect,
+  authorize("SYSTEM_ADMIN"),
+  validate(v.getById),
+  ctrl.remove
+);
+
 
 
 module.exports = router;
