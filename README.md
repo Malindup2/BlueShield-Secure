@@ -1,481 +1,168 @@
-# BlueShield – Life Below Water
+# BlueShield — Security Remediation
 
-SE3040: Application Frameworks Team Project
+**SE4030 – Secure Software Development · Group Assignment**
+Sri Lanka Institute of Information Technology
 
-## Project Overview
+This repository contains the security assessment and remediation of the **BlueShield** maritime hazard and illegal-fishing reporting platform. Its commit history documents the identification and fixing of each vulnerability individually.
 
-BlueShield is a full stack web application designed to help fishermen and authorities report, track, and manage illegal fishing activities and marine hazards. The platform supports secure reporting, case management, enforcement, and marine safety, with real-time data and external API integrations. The system is inspired by the need for sustainable marine resource management and protection of local fishing communities.
+| | |
+|---|---|
+| **Original project** | https://github.com/Malindup2/BlueShield |
+| **Baseline commit** | `5aee302` (11 April 2026) |
+| **Baseline tag** | `v0-vulnerable` |
+| **Final tag** | `v1-remediated` *(applied when remediation completes)* |
 
-## Key Features
-
-- Incident reporting and categorization (illegal fishing, hazards)
-- Case management and review workflows
-- Enforcement actions and AI-powered risk scoring
-- Marine hazard and restricted zone management
-- User authentication and role-based access control
-- Analytics and dashboards for users and admin
-- Integration with external APIs (Mapbox, Vessel Data, Open-Meteo, Gemini)
-- Responsive React frontend with state management
-
-## Architecture Overview
-
-**Tech Stack:**
-
-- Backend: Node.js + Express.js
-- Frontend: React.js (functional components, Hooks)
-- Database: MongoDB
-- State Management: Context API (or Redux)
-- Styling: Tailwind CSS / Bootstrap
-- Deployment: Backend → Render/Railway, Frontend → Vercel/Netlify
-- Testing: Jest, Supertest, Artillery
-
-**Architecture Diagram:**
-
-   [Frontend React App] --> REST API --> [Backend Express.js] --> [MongoDB Database]
-         |                 |                |
-      Context API/Redux   Routes/Controllers   Collections for:
-         |                 |                |
-      Components           Services/Logic      Reports, Cases, Enforcements, Hazards, Users
-
-## Core Components & Responsibilities
-
-### Incident & Auth Components
-- User registration, login, JWT authentication
-- Incident report CRUD (illegal fishing, hazards)
-- Mapbox API for geolocation
-
-### Case Review & Escalation
-- Illegal case CRUD and review
-- Vessel Data API simulation using Beeceptor for jurisdiction
-- Bulletins and case status updates
-
-### Enforcement & Risk Scoring
-- Enforcement record CRUD
-- Google Gemini API for AI risk scoring
-- Action logging and status management
-
-### Hazard & Marine Safety
-- Hazard CRUD and status management
-- Open-Meteo API for live sea conditions
-- Restricted zone CRUD and updates
-
-## Project Structure
+> The original project was developed by members of this group. It is not a deliberately vulnerable training application, and no fixed version of it is publicly available.
 
 ---
 
+## Team
 
-## Quick Start
+| Name | Index No. | Findings owned | Primary files |
+|---|---|---|---|
+| Thilakumara M.P. | IT23391390 | V1, V7, V13, V14 · **OAuth / OIDC implementation** | `controllers/authController.js`, `models/PendingUser.js`, `utils/generateToken.js`, `controllers/oauthController.js`, `routes/oauthRoutes.js`, `context/AuthContext.jsx`, `services/api.js` |
+| Dabarera W.A.S | IT23175648 | V6, V9, V12, V17 | `app.js`, `server.js`, `middlewares/sanitize.js`, `validations/auth.validation.js` |
+| Dias K.S.S. | IT23168404 | V3, V4, V5, V11 | `controllers/reportController.js`, `routes/reportRoutes.js`, `models/Report.js`, `utils/reportSerializer.js`, `controllers/hazardController.js`, `controllers/illegalCaseController.js` |
+| J.D. Minuli Pabasara | IT23156388 | V2, V8, V10, V15, V16 | `middlewares/authMiddleware.js`, `routes/vesselRoutes.js`, `controllers/vesselController.js`, `package.json` |
 
-1. **Clone the repository:**
-   ```bash
-   git clone <[text](https://github.com/Malindup2/BlueShield)>
-   cd BlueShield
-   ```
-2. **Install dependencies:**
-   ```bash
-   cd backend
-   npm install
-   ```
-3. **Set up environment variables:**
-   - Copy `.env.template` to `.env` and fill in your values:
-     ```bash
-     cp .env.template .env
-     # Edit .env as needed
-     ```
-4. **Start the backend server:**
-   ```bash
-   npm run dev
-   # or for production
-   npm start
-   ```
-5. **Base URL:**
-   - Local: `http://localhost:5000/api`
-   - Production: `[Insert Render URL Here]`
+
+### Shared files — coordinate before editing
+
+| File | Editors | Resolution |
+|---|---|---|
+| `models/User.js` | Minuli (V10), Dabarera (V9), Thilakumara (OAuth) | All fields agreed in a single foundation commit before branching |
+| `controllers/authController.js` | Thilakumara, Minuli (V8) | Minuli's two-line change merges first |
+| `routes/authRoutes.js` | Dabarera (V9), Thilakumara (V1) | Dabarera's rate limiters merge first |
+| `src/app.js` | Dabarera, Thilakumara (3 mount lines) | Dabarera restructures first; mounts added afterwards in one commit |
 
 ---
 
+## Getting started
 
-## Project Structure
-
+```bash
+git clone https://github.com/Malindup2/BlueShield-Secure.git
+cd BlueShield-Secure
+git checkout security/remediation
 ```
-backend/
-  src/
-    config/         # DB and config files
-    controllers/    # Route logic
-    middlewares/    # Express middlewares
-    models/         # Mongoose models
-    routes/         # Express routers
-    services/       # Business logic
-    utils/          # Utility functions
-  .env.template     # Example environment variables
-  .gitignore        # Ignore sensitive and build files
-  server.js         # Main entry point
-frontend/
-  ...               # React app (see frontend/README.md)
+
+**Set your own git identity before committing.** Individual contribution is assessed from the commit history — commits authored under another identity will not count toward your contribution.
+
+```bash
+git config user.name "Your Name"
+git config user.email "your-github-email"
+```
+
+### Install
+
+```bash
+cd backend  && npm install
+cd frontend && npm install
+```
+
+Copy `backend/.env.example` to `backend/.env` and fill in your own values. **Never commit a real `.env`.**
+
+---
+
+## Branches and tags
+
+| Ref | Purpose |
+|---|---|
+| `main` | Untouched baseline import |
+| **`v0-vulnerable`** | **Frozen vulnerable state — check this out to reproduce any exploit** |
+| `security/remediation` | Integration branch; all fixes merge here |
+| `security/vNN-<slug>` | One branch per vulnerability |
+| `feat/oauth-google-oidc` | OAuth / OpenID Connect feature |
+
+### Reproducing a vulnerability
+
+`security/remediation` becomes progressively more secure as fixes land, so exploits stop working there. `v0-vulnerable` never changes:
+
+```bash
+git checkout v0-vulnerable          # exploit works here — capture "before"
+git checkout security/remediation   # fixed — capture "after"
 ```
 
 ---
 
+## Workflow
 
-## Authentication
-All protected routes require a JWT in the `Authorization` header:
+```bash
+git checkout -b security/v03-report-delete-authz security/remediation
+# implement the fix
+git commit                      # use the template below
+git push -u origin security/v03-report-delete-authz
+# open a pull request into security/remediation
+```
 
-   Authorization: Bearer <your_jwt_token>
+### Commit message template — required for every fix
+
+The assignment brief makes a detailed commit history a condition of a valid submission. Every fix commit must use this format:
+
+```
+fix(V03): enforce SYSTEM_ADMIN authorization on report deletion
+
+Vulnerability : Broken Access Control (OWASP A01:2021, CWE-862)
+Location      : backend/src/routes/reportRoutes.js:35
+Impact        : Any authenticated FISHERMAN could delete any report,
+                destroying evidence of illegal fishing activity.
+Root cause    : authorize() middleware omitted from the DELETE route.
+Fix           : Added authorize("SYSTEM_ADMIN") and converted the
+                operation to a soft delete.
+Verified      : FISHERMAN token now receives 403; ZAP re-scan clear.
+```
 
 ---
 
-
-## API Components & Endpoints
-
-### API Reference
-
-The complete, interactive API documentation is available at:
-**[https://blueshield-kixw.onrender.com/api-docs](https://blueshield-kixw.onrender.com/api-docs)**
-
-The README keeps the human-readable route summary below so each endpoint is clear at a glance.
-
-### 1. Auth & Session Management
-
-#### `POST /api/auth/register`
-Registers a new user account and returns a JWT for immediate login.
-
-#### `POST /api/auth/login`
-Authenticates a user with email and password and returns the user profile plus token.
-
-#### `GET /api/auth/me`
-Returns the currently authenticated user profile.
-
-### 2. Reports
-
-#### `POST /api/reports`
-Creates a new incident report with title, description, type, severity, and optional location data.
-
-#### `GET /api/reports`
-Lists reports for authorized users so they can review submitted incidents.
-
-#### `GET /api/reports/:reportId`
-Fetches the details of one report by its ID.
-
-#### `PATCH /api/reports/:reportId`
-Updates an existing report with new information, such as status or extra details.
-
-#### `DELETE /api/reports/:reportId`
-Deletes a report record after authentication and application-level ownership checks.
-
-### 3. Illegal Case Review & Escalation
-
-#### `GET /api/illegal-cases/reports/pending`
-Returns reports that are waiting for illegal-case review.
-
-#### `PATCH /api/illegal-cases/reports/:reportId/mark-reviewed`
-Marks a submitted report as reviewed.
-
-#### `DELETE /api/illegal-cases/reports/:reportId`
-Removes a reviewed report entry from the illegal-case workflow.
-
-#### `GET /api/illegal-cases/officers`
-Loads the officer list so administrators can assign a case.
-
-#### `POST /api/illegal-cases/reports/:reportId/review`
-Creates a new illegal case record from a report after review.
-
-#### `GET /api/illegal-cases`
-Lists all illegal case records for the illegal-admin dashboard.
-
-#### `GET /api/illegal-cases/:caseId`
-Returns the details of a single illegal case.
-
-#### `PATCH /api/illegal-cases/:caseId`
-Updates an existing illegal case record.
-
-#### `DELETE /api/illegal-cases/:caseId`
-Deletes an illegal case record.
-
-#### `POST /api/illegal-cases/:caseId/escalate`
-Escalates the case to a selected officer.
-
-#### `POST /api/illegal-cases/:caseId/resolve`
-Marks an illegal case as resolved.
-
-#### `POST /api/illegal-cases/:caseId/track`
-Triggers vessel tracking data for the case.
-
-#### `POST /api/illegal-cases/:caseId/notes`
-Adds a reference note or follow-up note to the case.
-
-### 4. Enforcement Workflow
-
-#### `GET /api/enforcements/stats/basic`
-Returns a basic enforcement summary for the dashboard.
-
-#### `GET /api/enforcements/stats/by-date`
-Returns enforcement metrics filtered by date range.
-
-#### `GET /api/enforcements/team/officers`
-Lists active officers who can be assigned to an enforcement.
-
-#### `POST /api/enforcements`
-Creates a new enforcement record for an illegal case.
-
-#### `GET /api/enforcements`
-Lists enforcement records for officers, system admins, and illegal admins.
-
-#### `GET /api/enforcements/:enforcementId`
-Fetches one enforcement record with its linked case and officer details.
-
-#### `PATCH /api/enforcements/:enforcementId`
-Updates the enforcement record.
-
-#### `DELETE /api/enforcements/:enforcementId`
-Deletes the enforcement record.
-
-#### `POST /api/enforcements/from-case/:caseId`
-Creates a new enforcement directly from an illegal case.
-
-#### `POST /api/enforcements/:enforcementId/actions`
-Adds a logged enforcement action such as a warning, arrest, seizure, or fine.
-
-#### `PATCH /api/enforcements/:enforcementId/actions/:actionId`
-Updates a previously logged enforcement action.
-
-#### `DELETE /api/enforcements/:enforcementId/actions/:actionId`
-Removes a logged enforcement action.
-
-#### `PATCH /api/enforcements/:enforcementId/close`
-Closes the enforcement and stores the final outcome, penalty, and notes.
-
-#### `POST /api/enforcements/:enforcementId/risk-score`
-Generates an AI risk score using the Gemini integration.
-
-#### `GET /api/enforcements/:enforcementId/evidence`
-Lists all evidence items attached to the enforcement.
-
-#### `POST /api/enforcements/:enforcementId/evidence`
-Uploads a new evidence item and its attachment data.
-
-#### `PATCH /api/enforcements/:enforcementId/evidence/:evidenceId`
-Updates an existing evidence item and any new uploaded files.
-
-#### `DELETE /api/enforcements/:enforcementId/evidence/:evidenceId`
-Deletes an evidence item and removes linked Cloudinary files.
-
-#### `GET /api/enforcements/:enforcementId/team`
-Lists the enforcement team members assigned to the case.
-
-#### `POST /api/enforcements/:enforcementId/team`
-Assigns an officer or team member to the enforcement.
-
-#### `PATCH /api/enforcements/:enforcementId/team/:memberId`
-Updates a team member's status, role, hours, or responsibilities.
-
-#### `DELETE /api/enforcements/:enforcementId/team/:memberId`
-Removes a team member from the enforcement.
-
-### 5. Hazard & Marine Safety
-
-#### `POST /api/hazards/from-report/:reportId`
-Creates a verified hazard record from an approved report.
-
-#### `GET /api/hazards`
-Lists all hazard records for hazard-admin users.
-
-#### `GET /api/hazards/:id`
-Fetches one hazard record by ID.
-
-#### `PATCH /api/hazards/:id`
-Updates the hazard details or handling status.
-
-#### `GET /api/hazards/:id/weather`
-Fetches live sea or weather conditions for the hazard location.
-
-#### `PATCH /api/hazards/:id/resolve`
-Marks the hazard as resolved and disables linked active zones.
-
-#### `DELETE /api/hazards/:id`
-Deletes a hazard record permanently.
-
-### 6. Zones
-
-#### `POST /api/zones`
-Creates a restricted or dangerous zone linked to a hazard.
-
-#### `GET /api/zones`
-Lists zones in a format suitable for map display.
-
-#### `GET /api/zones/:id`
-Fetches one zone by ID.
-
-#### `PATCH /api/zones/:id`
-Updates zone details or disables the zone.
-
-#### `DELETE /api/zones/:id`
-Deletes the zone permanently.
+## Findings register
+
+17 vulnerabilities identified across 8 OWASP Top 10 (2021) categories.
+
+**Progress: 8 of 17 remediated** — V1, V3, V6, V7, V9, V12, V13, V14.
+The OAuth 2.0 / OpenID Connect feature (Google, Authorization Code with PKCE) is implemented and verified end to end.
+
+Categories closed so far: **A01, A02, A03, A05, A07, A09**.
+
+| ID | Vulnerability | OWASP | CWE | Severity | Owner | Status |
+|---|---|---|---|---|---|---|
+| V1 | Privilege escalation via role mass assignment | A01 | 269/915 | Critical | Thilakumara | ✅ |
+| V2 | Unauthenticated vessel API endpoints | A01 | 306 | Critical | Pabasara | ☐ |
+| V3 | Missing authorization on report deletion | A01 | 862 | Critical | Dias | ✅ |
+| V4 | IDOR and mass assignment on report update | A01 | 639/915 | High | Dias | ☐ |
+| V5 | Anonymous reporter de-anonymisation | A01/A02 | 359 | High | Dias | ☐ |
+| V6 | NoSQL injection in authentication flows | A03 | 943 | High | Dabarera | ✅ |
+| V7 | Predictable OTP generation | A02 | 338/330 | High | Thilakumara | ✅ |
+| V8 | OTP disclosed in HTTP response | A04 | 200 | High | Pabasara | ☐ |
+| V9 | Missing rate limiting and account lockout | A07 | 307 | High | Dabarera | ✅ |
+| V10 | Sensitive fields exposed via `/api/auth/me` | A02 | 200 | High | Pabasara | ☐ |
+| V11 | Secrets committed to git history | A05 | 540 | Medium | Dias | ☐ |
+| V12 | Security misconfiguration | A05 | 693/16 | Medium | Dabarera | ✅ |
+| V13 | Insecure JWT storage and lifecycle | A02/A07 | 522/613 | Medium | Thilakumara | ✅ |
+| V14 | User enumeration and verbose error leakage | A01/A09 | 204/209 | Medium | Thilakumara | ✅ |
+| V15 | Weak administrator-role validation | A01 | 697 | Medium | Pabasara | ☐ |
+| V16 | Vulnerable third-party dependencies | A06 | 1035 | Medium | Pabasara | ☐ |
+| V17 | Insufficient transport security | A02 | 319/311 | Medium | Dabarera | ☐ |
+
+**Documented as accepted residual risk:** DOM XSS sinks · LLM prompt injection · over-broad report read access.
+
+> **V6 verified impact.** Black-box testing (`evidence/V06-before.txt`) confirms the operator payload reaches Mongo, but the impact is narrower than a login bypass: `POST /login` with `{"$ne":null}` in both fields returns **500** (`bcrypt.compare` rejects the non-string password) rather than a signed JWT. The demonstrated impact is on `POST /forgot-password` — an operator matches an **arbitrary** account, so a password-reset token is generated and stored for a user the attacker never named (500 after the match, vs 404 for a bogus literal email) — and on `POST /register`, where `findOneAndDelete({email:{$ne:null}})` deletes another user's pending signup. Discovery credit: manual code review + the black-box PoC (njsscan has no rule for this Mongoose pattern; Semgrep does not run on native Windows).
 
 ---
 
+## Evidence
 
+Every finding requires a before/after pair, captured in one sitting so the comparison is like-for-like.
 
-## Environment Variables
-See `.env.template` for all required variables:
-
-   PORT=5000
-   NODE_ENV=development
-   MONGO_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret
-
----
-
-
-## Contributing
-- Fork and clone the repo
-- Create a new branch for your feature/component
-- Commit and push your changes
-- Open a pull request
+```
+evidence/
+  V01-before.png        V01-after.png
+  ZAP-before.html       ZAP-after.html
+  depcheck-before.html  depcheck-after.html
+```
 
 ---
 
+## Security testing tools
 
-## License
-MIT
+OWASP ZAP · OWASP Dependency-Check · npm audit · njsscan / Semgrep · gitleaks · NoSQLMap · Artillery · Postman · Jest
 
----
-
-
-## External APIs Used
-- Mapbox Reverse Geocoding
-- Beeceptor API (for simulating vessel tracking)
-- Google Gemini API
-- Open-Meteo Marine API
-- DataDocked VesselFinder API
-- MyShipTracking API
-- Position API (vessel position microservice)
-- Cloudinary (image uploads)
-- Azure Translator API
-
-## Notes
-- Do NOT commit `.env` or `.env.local` files.
-- DO commit `.env.template` for onboarding new developers.
-- See API docs above for endpoint details and required roles.
- 
-### 📄 Detailed Documentation
-For full compliance with the SE-3040 project requirements, please refer to the following detailed reports:
-- **[Testing Instruction Report](./docs/Testing_Instruction_Report.md)**: Detailed guide for Unit, Integration, and Performance testing.
-- **[Deployment Report](./docs/Deployment_Report.md)**: Complete architecture, setup steps, and evidence.
-
----
-
-## Deployment Documentation
-
-This application is deployed using a decoupled architecture with the backend on Render and the frontend on Vercel.
-
-###  Backend Deployment (Render)
-The Node.js/Express API is hosted on **Render**.
-
-**Setup Steps:**
-1.  **Create Service**: Create a new "Web Service" on Render and connect the GitHub repository.
-2.  **Root Directory**: Set the root directory to `./backend`.
-3.  **Build Command**: Set the build command to `npm install`.
-4.  **Start Command**: Set the start command to `npm start`.
-5.  **Environment Variables**: Add all required variables (see below) in the Render dashboard "Environment" section.
-
-**Live Backend API URL:** [https://blueshield-kixw.onrender.com](https://blueshield-kixw.onrender.com)
-
----
-
-###  Frontend Deployment (Vercel)
-The React application is hosted on **Vercel**.
-
-**Setup Steps:**
-1.  **Import Project**: Import the repository into the Vercel dashboard.
-2.  **Root Directory**: Set the root directory to `./frontend`.
-3.  **Framework Preset**: Select **Vite**.
-4.  **Environment Variables**: Ensure `VITE_API_BASE_URL` is set to point to the Render backend URL.
-5.  **Deploy**: Trigger the deployment.
-
-**Live Frontend Application URL:** [https://blue-shield-ivory.vercel.app](https://blue-shield-ivory.vercel.app)
-
----
-
-###  Environment Variables
-The following environment variables are required for the system to function. Do **not** expose actual secrets in the repository.
-
-# Server
-PORT=5000
-NODE_ENV=development
-ALLOWED_ORIGIN=https://blue-shield-ivory.vercel.app
-
-# MongoDB
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/blueshield
-
-# Authentication
-JWT_SECRET=your_jwt_secret_here
-JWT_EXPIRE=7d
-
-# Google Gemini AI
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Mapbox
-MAPBOX_API_KEY=your_mapbox_api_key_here
-
-# ---- Vessel Tracking APIs (fallback chain) ----
-
-# 1. DataDocked VesselFinder API (primary)
-DATADOCKED_API_KEY=your_datadocked_api_key_here
-
-# 2. MyShipTracking API (secondary fallback)
-MYSHIPTRACKING_API_KEY=your_myshiptracking_api_key_here
-MYSHIPTRACKING_BASE_URL=https://api.myshiptracking.com
-
-# 3. Beeceptor Mock Vessel API (tertiary fallback)
-BEECEPTOR_VESSEL_API_URL=https://blueshield-vessels.free.beeceptor.com/api/vessels
-
-# Position API (vessel position microservice)
-POSITION_API_BASE_URL=http://localhost:5050
-POSITION_API_TIMEOUT_MS=15000
-
-# Cloudinary (image uploads)
-CLOUDINARY_CLOUD_NAME=your_cloud_name_here
-CLOUDINARY_API_KEY=your_cloudinary_api_key_here
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret_here
-
-# Azure Translator (multilingual support)
-AZURE_TRANSLATOR_KEY=your_azure_translator_key_here
-AZURE_TRANSLATOR_LOCATION=eastasia
-AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com/
-
----
-
-###  Deployment Evidence
-*Evidence of successful deployment and operational status.*
-
-> **Dashboard Status:** 
-
-  Vercel
-
-  ![alt text](<docs/Screenshot 2026-04-09 113309.png>)
-
-  ![alt text](<docs/Screenshot 2026-04-09 113143.png>)
-
-  Render
-
-  ![alt text](<docs/Screenshot 2026-04-09 113454.png>)
-
-  ![alt text](<docs/Screenshot 2026-04-09 113442.png>)
-
-> **Live API Response:**
-
-  ![alt text](docs/image.png)
-
-> **Mobile/Web View:** 
-![Mobile View Evidence](docs/mobileview.jpeg)
-
-### Testing Instructions
-For comprehensive testing instructions, including Unit, Integration, and Performance testing setup and execution, please refer to the **[Testing Instruction Report](./docs/Testing_Instruction_Report.md)**.
-
-## Best Practices
-- Use a single `.gitignore` at the root; do NOT commit `.env` or `.env.local`
-- Commit `.env.template` for onboarding
-- Use meaningful commit messages and regular pushes
-- Follow clean architecture: controllers, services, models, routes, utils
-- Validate and sanitize all inputs
-- Handle errors and edge cases gracefully
+*Only tools actually used are retained in the final report.*

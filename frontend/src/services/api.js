@@ -21,12 +21,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      // Optional: Handle token expiration globally (e.g., dispatch a logout event or clear localStorage)
-      // localStorage.removeItem("token");
-      // localStorage.removeItem("userRole");
-      // localStorage.removeItem("user");
-      // window.location.href = "/login";
+    // V13: previously commented out, so an expired or revoked token left
+    // the client believing it was still signed in. Access tokens are now
+    // short lived, which makes handling this mandatory rather than optional.
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("user");
+
+      // Avoid a redirect loop when the failing request is the sign-in itself.
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
