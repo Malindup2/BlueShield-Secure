@@ -1,0 +1,17 @@
+PASS tests/security/v04-report-update-authz.test.js
+  V4 — report update authorization
+    √ rejects an unauthenticated update request with 401 (30 ms)
+    √ rejects Fisherman A updating Fisherman B's report with 403 (10 ms)
+    √ allows the owner to update title, description, and severity (7 ms)
+    √ prevents the owner from changing ownership and anonymity (6 ms)
+    √ prevents a fisherman from changing status (7 ms)
+    √ prevents mass assignment of report workflow and evidence fields (7 ms)
+    √ allows an officer to update report status (7 ms)
+    √ prevents an officer from modifying report content fields (6 ms)
+    √ allows a system administrator to update report status (9 ms)
+    √ returns 404 when the report does not exist or is soft-deleted (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       10 passed, 10 total
+Snapshots:   0 total
+Time:        1.875 s, estimated 3 s

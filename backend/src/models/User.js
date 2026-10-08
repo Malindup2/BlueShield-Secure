@@ -27,9 +27,15 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Please add a password'],
+      // Federated accounts (Google OIDC) have no local password.
+      required: [
+        function () {
+          return this.authProvider === 'local';
+        },
+        'Please add a password',
+      ],
       minlength: 8,
-      select: false, 
+      select: false,
     },
     role: {
       type: String,
@@ -45,10 +51,26 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    otp: String,
-    otpExpire: Date,
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
+    // --- Sensitive verification/recovery material (V10) -------------------
+    // select: false keeps these out of query results by default, so they
+    // cannot be returned to a client by accident.
+    otp: { type: String, select: false },
+    otpExpire: { type: Date, select: false },
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpire: { type: Date, select: false },
+
+    // --- Brute-force protection (V9) --------------------------------------
+    failedLoginAttempts: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, default: null, select: false },
+
+    // --- Federated identity (OAuth / OIDC) --------------------------------
+    googleId: { type: String, default: null, index: true, sparse: true },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
+    },
+
     lastLoginAt: {
       type: Date,
       default: null,
@@ -67,8 +89,10 @@ userSchema.pre('save', async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Compare password
+// Compare password. Federated accounts hold no password hash, so password
+// login must always fail for them 
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return bcrypt.compare(enteredPassword, this.password);
 };
 

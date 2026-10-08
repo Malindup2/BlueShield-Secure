@@ -1,19 +1,21 @@
 const express = require("express");
 const router = express.Router();
 const vesselController = require("../controllers/vesselController");
+const { protect } = require("../middlewares/authMiddleware");
+const authorize = require("../middlewares/authorize");
+const zoneRateLimiter = require("../middlewares/zoneRateLimiter");
 
-// Create a new vessel
-router.post("/", vesselController.createVessel);
+// FISHERMAN accounts have no legitimate need to create, list, or zone-query vessel records directly — this data feeds officer/admin investigation workflows, so every route here requires an elevated role.
+const vesselRoles = ["OFFICER", "ILLEGAL_ADMIN", "SYSTEM_ADMIN"];
 
-// Get all vessels
-router.get("/", vesselController.getVessels);
-
-// Get nearby vessels by location (lat, lng)
-// Usage: GET /api/vessels/nearby?lat=6.9271&lng=79.8612&radius=50
-// router.get("/nearby", vesselController.getNearbyVessels);
-
-// Get vessels within a geographic zone
-// Usage: GET /api/vessels/zone?minlat=6.8&maxlat=7.0&minlon=79.8&maxlon=80.0&minutesBack=60
-router.get("/zone", vesselController.getVesselsInZone);
+router.post("/", protect, authorize(...vesselRoles), vesselController.createVessel);
+router.get("/", protect, authorize(...vesselRoles), vesselController.getVessels);
+router.get(
+  "/zone",
+  protect,
+  authorize(...vesselRoles),
+  zoneRateLimiter,
+  vesselController.getVesselsInZone
+);
 
 module.exports = router;
